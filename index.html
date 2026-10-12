@@ -37,10 +37,10 @@
         </svg>
         <h1 id="logo" class="logo" aria-label="戦国将棋"><span aria-hidden="true">戦<br />国</span><span aria-hidden="true">将<br />棋</span></h1>
         </div>
-        <p class="subtitle">― 葦原の乱 ―</p>
+        <p class="subtitle">― 信長・秀吉・家康 ―</p>
         <nav class="menu" aria-label="メニュー">
           <button id="menu-continue" type="button" class="primary" hidden>つづきから</button>
-          <button id="menu-story" type="button" class="primary">物語 〜戦国絵巻〜</button>
+          <button id="menu-story" type="button" class="primary">物語 〜戦国三英雄伝〜</button>
           <button id="menu-free" type="button">自由対局</button>
           <button id="menu-rules" type="button">将棋のあそびかた</button>
           <button id="menu-settings" type="button">せってい</button>
@@ -53,10 +53,12 @@
       <section id="screen-story" class="screen" aria-labelledby="story-heading" hidden>
         <header class="bar">
           <button id="story-back" type="button" class="bar-button">← もどる</button>
-          <h2 id="story-heading" class="bar-title">物語 〜戦国絵巻〜</h2>
+          <h2 id="story-heading" class="bar-title">物語 〜戦国三英雄伝〜</h2>
           <span class="bar-spacer"></span>
         </header>
-        <p class="muted lead">勝つと、次の話が開きます。</p>
+        <div id="arc-tabs" class="arc-tabs" role="group" aria-label="編をえらぶ"></div>
+        <p id="arc-summary" class="muted small lead"></p>
+        <p id="story-notice" class="notice" role="status" hidden></p>
         <ol id="chapter-list" class="chapters"></ol>
       </section>
 
@@ -106,6 +108,8 @@
           <p class="player-name"><span id="name-top"></span></p>
           <div class="hand" id="hand-top" role="group" aria-label="上側の持ち駒"></div>
         </div>
+
+        <p id="opp-speech" class="opp-speech idle" aria-live="polite" hidden></p>
 
         <div class="board-wrap">
           <div class="file-labels" id="file-labels" aria-hidden="true"></div>

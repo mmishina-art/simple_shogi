@@ -319,6 +319,40 @@ button.link {
 }
 
 /* ---- 物語の話の選択 ---- */
+.arc-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.arc-tab {
+  flex: 1;
+  margin: 0;
+  padding: 8px 4px;
+  font-family: var(--serif);
+  font-weight: 700;
+}
+
+.arc-tab[aria-pressed='true'] {
+  background: var(--primary);
+  border-color: var(--gold);
+  color: var(--primary-text);
+}
+
+.arc-tab[aria-pressed='true']::before {
+  content: '▶ ';
+}
+
+.notice {
+  margin: 6px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--gold);
+  font-family: var(--serif);
+  text-align: center;
+}
+
 .chapters {
   list-style: none;
   margin: 0;
@@ -504,6 +538,31 @@ legend {
   text-align: center;
 }
 
+/* 対戦相手のセリフ。出たり消えたりしても盤がずれないよう、場所は空けておく */
+.opp-speech {
+  position: relative;
+  min-height: 3.1em;
+  margin: 6px 0 2px;
+  padding: 3px 10px;
+  border: 1px solid var(--gold-soft);
+  border-radius: 10px;
+  background: var(--surface);
+  font-family: var(--serif);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.opp-speech.idle {
+  visibility: hidden;
+}
+
+.opp-speech .who {
+  display: block;
+  color: var(--gold);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .board-wrap {
   margin: 4px 0;
 }
@@ -639,7 +698,7 @@ legend {
 }
 
 .status {
-  min-height: 3.2em;
+  min-height: 2.6em;
   margin: 6px 0 2px;
   text-align: center;
   font-family: var(--serif);
@@ -856,15 +915,28 @@ legend {
   filter: drop-shadow(0 4px 10px var(--shadow));
 }
 
-.portrait[data-tone='1'] { --tone-a: #2c4a6b; --tone-b: #d2ac62; }
-.portrait[data-tone='2'] { --tone-a: #5d5d4b; --tone-b: #c7b88a; }
-.portrait[data-tone='3'] { --tone-a: #5e3c2a; --tone-b: #b04a32; }
-.portrait[data-tone='4'] { --tone-a: #7a5a2a; --tone-b: #e8d8a8; }
-.portrait[data-tone='5'] { --tone-a: #6b2c4a; --tone-b: #ecc8d2; }
-.portrait[data-tone='6'] { --tone-a: #2d3d38; --tone-b: #b9c4a8; }
-.portrait[data-tone='7'] { --tone-a: #2a2a33; --tone-b: #7a7a8c; }
-.portrait[data-tone='8'] { --tone-a: #4f2020; --tone-b: #d2ac62; }
-.portrait[data-tone='9'] { --tone-a: #2e2e50; --tone-b: #e2d27a; }
+.portrait[data-tone='1'] { --tone-a: #4f2020; --tone-b: #d2ac62; }
+.portrait[data-tone='2'] { --tone-a: #2c4a6b; --tone-b: #c7b88a; }
+.portrait[data-tone='3'] { --tone-a: #5a3a6b; --tone-b: #e8d8a8; }
+.portrait[data-tone='4'] { --tone-a: #2d5a45; --tone-b: #d2ac62; }
+.portrait[data-tone='5'] { --tone-a: #6b3a2a; --tone-b: #c9d4e0; }
+.portrait[data-tone='6'] { --tone-a: #7a2a2a; --tone-b: #e8e0d0; }
+.portrait[data-tone='7'] { --tone-a: #2e2e50; --tone-b: #e2d27a; }
+.portrait[data-tone='8'] { --tone-a: #7a5a2a; --tone-b: #e8d8a8; }
+.portrait[data-tone='9'] { --tone-a: #2d3d38; --tone-b: #b9c4a8; }
+.portrait[data-tone='10'] { --tone-a: #a0522d; --tone-b: #f0d070; }
+.portrait[data-tone='11'] { --tone-a: #3a4a7a; --tone-b: #d8d8e8; }
+.portrait[data-tone='12'] { --tone-a: #4a5d3a; --tone-b: #d0c890; }
+.portrait[data-tone='13'] { --tone-a: #5d5d4b; --tone-b: #c7b88a; }
+.portrait[data-tone='14'] { --tone-a: #5e2a22; --tone-b: #b0b0b8; }
+.portrait[data-tone='15'] { --tone-a: #2a4a3a; --tone-b: #d2ac62; }
+.portrait[data-tone='16'] { --tone-a: #4a2a5a; --tone-b: #e0c0e0; }
+.portrait[data-tone='17'] { --tone-a: #5a4a2a; --tone-b: #d8c890; }
+.portrait[data-tone='18'] { --tone-a: #3a3a4a; --tone-b: #a8b8c8; }
+.portrait[data-tone='19'] { --tone-a: #243a5a; --tone-b: #e8e0b0; }
+.portrait[data-tone='20'] { --tone-a: #4a4a52; --tone-b: #d85a4a; }
+.portrait[data-tone='21'] { --tone-a: #8a2a22; --tone-b: #e8c050; }
+.portrait[data-tone='22'] { --tone-a: #6a2a50; --tone-b: #e8d0e0; }
 
 .portrait .p-body,
 .portrait .p-helm {
@@ -951,6 +1023,17 @@ legend {
 
 .scene.narration .speech {
   color: var(--muted);
+}
+
+/* 歴史メモ: 巻物のような見た目の、学びのカード */
+.scene.memo .dialogue {
+  border-style: double;
+  border-width: 4px;
+}
+
+.scene.memo .speaker {
+  background: var(--gold);
+  color: var(--bg);
 }
 
 .next {

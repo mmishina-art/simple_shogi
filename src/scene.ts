@@ -8,8 +8,8 @@ import { byId, prefersReducedMotion } from './ui';
 
 const CHAR_MS = 28;
 
-/** 会話の BGM。夜・軍議・敵の城・天守は不穏な曲、それ以外は静かな曲 */
-const TENSE: Place[] = ['night', 'strategy', 'fortress', 'tenka'];
+/** 会話の BGM。夜・軍議・城・本能寺・戦場は緊張感のある曲、それ以外は静かな曲 */
+const TENSE: Place[] = ['night', 'strategy', 'fortress', 'tenka', 'battlefield'];
 export const sceneTrack = (place: Place): TrackName => (TENSE.includes(place) ? 'tension' : 'scene');
 
 export function runScene(lines: Line[], place: Place, placeName: string): Promise<void> {
@@ -39,16 +39,18 @@ export function runScene(lines: Line[], place: Place, placeName: string): Promis
     const show = (): void => {
       const line = lines[index];
       const who = characterOf(line.who);
-      root.classList.toggle('narration', !who);
-      speaker.textContent = who ? who.name : '';
-      speaker.hidden = !who;
+      const memo = line.who === 'memo';
+      root.classList.toggle('narration', !who && !memo);
+      root.classList.toggle('memo', memo);
+      speaker.textContent = who ? who.name : memo ? '歴史メモ' : '';
+      speaker.hidden = !who && !memo;
       portrait.replaceChildren();
       portrait.hidden = !who;
       if (who) {
         portrait.dataset.tone = String(who.tone);
         portrait.append(portraitSvg(who.look));
       }
-      sr.textContent = `${who ? `${who.name}: ` : ''}${line.text}`;
+      sr.textContent = `${who ? `${who.name}: ` : memo ? '歴史メモ: ' : ''}${line.text}`;
       window.clearInterval(timer);
       if (prefersReducedMotion()) {
         complete(line.text);

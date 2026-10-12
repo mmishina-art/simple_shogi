@@ -4,6 +4,8 @@ import { expect, test, type Page } from '@playwright/test';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     Math.random = () => 0.5;
+    // 保存データは今の版(2)として始める（古い版からの移行は、移行のテストで確かめる）
+    if (!localStorage.getItem('simple-shogi-schema')) localStorage.setItem('simple-shogi-schema', '2');
   });
 });
 
@@ -52,19 +54,19 @@ test('画面ごとに BGM が切り替わる（タイトル → 話の選択 →
   await expect.poll(() => tracks(page)).toEqual(['title', 'map', 'scene', 'game', 'title']);
 });
 
-test('夜の会話は不穏な曲、第八話の対局は強敵の曲', async ({ page }) => {
+test('戦場の会話は緊張感のある曲、決戦の対局は強敵の曲、ふつうの対局は対局の曲', async ({ page }) => {
   await recordMusic(page);
   await page.goto('/?debug=1');
   await page.getByRole('button', { name: /物語/ }).click();
-  await page.locator('.chapter').nth(5).click(); // 第六話: 月夜の忍び
-  await expect.poll(() => tracks(page)).toContain('tension');
+  await page.locator('.chapter').nth(0).click(); // 信長編 第一話: 尾張の統一（ふつうの対局）
   await page.getByRole('button', { name: 'スキップ' }).click();
-  await expect.poll(() => tracks(page)).toContain('game');
+  await expect.poll(() => tracks(page)).toEqual(['title', 'map', 'scene', 'game']);
   await page.getByRole('button', { name: /もどる/ }).click();
   await page.getByRole('button', { name: /物語/ }).click();
-  await page.locator('.chapter').nth(7).click(); // 第八話
+  await page.locator('.chapter').nth(5).click(); // 信長編 第六話: 長篠の戦い（戦場・決戦）
+  await expect.poll(async () => (await tracks(page)).slice(-1)[0]).toBe('tension');
   await page.getByRole('button', { name: 'スキップ' }).click();
-  expect((await tracks(page)).slice(-1)).toEqual(['boss']);
+  await expect.poll(async () => (await tracks(page)).slice(-1)[0]).toBe('boss');
 });
 
 test('対局が終わると BGM が止まる（勝敗の音が聞こえるように）', async ({ page }) => {
@@ -106,19 +108,19 @@ test.describe('しゃべり声（文字が出るアニメーションを動か�
     await page.locator('.chapter').nth(0).click();
     // 最初は地の文（ナレーション）: 文字が出きるまで待っても、声は鳴らない
     await expect(page.locator('#scene-speaker')).toBeHidden();
-    await expect(page.locator('#scene-text')).toContainText('時は戦国');
+    await expect(page.locator('#scene-text')).toContainText('戦国時代');
     await page.waitForTimeout(600);
     expect(await voices()).toEqual([]);
 
-    // 人物（玄斎）の台詞まで進める
+    // 人物（信長）の台詞まで進める
     const box = page.locator('#scene-box');
     for (let i = 0; i < 30 && (await page.locator('#scene-speaker').isHidden()); i++) await box.click();
-    await expect(page.locator('#scene-speaker')).toHaveText('伊吹 玄斎');
+    await expect(page.locator('#scene-speaker')).toHaveText('織田信長');
     await expect.poll(async () => (await voices()).length, { timeout: 5000 }).toBeGreaterThan(2);
-    // 玄斎の声の高さ（基準 150Hz の 1〜2 倍）で鳴っている
+    // 信長の声の高さ（基準 112Hz の 1〜2 倍）で鳴っている
     for (const hz of await voices()) {
-      expect(hz).toBeGreaterThanOrEqual(150);
-      expect(hz).toBeLessThan(300);
+      expect(hz).toBeGreaterThanOrEqual(112);
+      expect(hz).toBeLessThan(224);
     }
   });
 
@@ -294,33 +296,82 @@ test('対局は自動で保存され、タイトルの「つづきから」で�
   await expect(page.locator('#status')).toContainText('後手の番です');
 });
 
-test('物語: 最初は第一話だけが選べ、会話のあと対局が始まる', async ({ page }) => {
+test('物語: 最初は信長編の第一話だけが選べ、会話のあと対局が始まる', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /物語/ }).click();
+  const tabs = page.locator('.arc-tab');
+  await expect(tabs).toHaveCount(3);
+  await expect(tabs.nth(0)).toHaveAttribute('aria-pressed', 'true');
+  await expect(tabs.nth(1)).toBeDisabled(); // 秀吉編は、信長編をクリアするまで開かない
+  await expect(tabs.nth(2)).toBeDisabled();
   const chapters = page.locator('.chapter');
   await expect(chapters).toHaveCount(8);
   await expect(chapters.nth(0)).toBeEnabled();
+  await expect(chapters.nth(0)).toContainText('1556年');
   await expect(chapters.nth(1)).toBeDisabled();
 
   await chapters.nth(0).click();
   const box = page.locator('#scene-box');
   await expect(page.locator('#screen-scene')).toBeVisible();
-  await expect(page.locator('#scene-text')).toContainText('時は戦国');
+  await expect(page.locator('#scene-text')).toContainText('戦国時代');
   // 会話を最後まで進める（reducedMotion のため、文字は一度に出る）
   for (let i = 0; i < 40 && (await page.locator('#screen-scene').isVisible()); i++) await box.click();
   await expect(page.locator('#screen-game')).toBeVisible();
-  await expect(page.locator('#game-title')).toHaveText('第一話 稽古');
-  await expect(page.locator('#name-top')).toContainText('伊吹 玄斎');
+  await expect(page.locator('#game-title')).toHaveText('信長編第一話');
+  await expect(page.locator('#name-top')).toContainText('織田信勝');
 });
 
-test('物語: 会話は「スキップ」で飛ばせる。?debug=1 では全話が選べる', async ({ page }) => {
+test('物語: 会話は「スキップ」で飛ばせる。?debug=1 では全編・全話が選べる', async ({ page }) => {
   await page.goto('/?debug=1');
   await page.getByRole('button', { name: /物語/ }).click();
+  await expect(page.locator('.arc-tab:enabled')).toHaveCount(3);
   await expect(page.locator('.chapter:enabled')).toHaveCount(8);
   await page.locator('.chapter').nth(7).click();
   await expect(page.locator('#scene-speaker')).toBeHidden(); // 最初は地の文
   await page.getByRole('button', { name: 'スキップ' }).click();
-  await expect(page.locator('#game-title')).toHaveText('第八話 天下一番');
+  await expect(page.locator('#game-title')).toHaveText('信長編第八話');
+  await expect(page.locator('#name-top')).toContainText('明智光秀');
+
+  await page.getByRole('button', { name: /もどる/ }).click();
+  await page.getByRole('button', { name: /物語/ }).click();
+  await page.locator('.arc-tab').nth(2).click();
+  await expect(page.locator('.arc-tab').nth(2)).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.chapter').nth(5).click();
+  await page.getByRole('button', { name: 'スキップ' }).click();
+  await expect(page.locator('#game-title')).toHaveText('家康編第六話');
+  await expect(page.locator('#name-top')).toContainText('石田三成'); // 関ヶ原
+});
+
+test('物語の対局では、対戦相手が史実にそったセリフを話す。自由対局では話さない', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /物語/ }).click();
+  await page.locator('.chapter').nth(1).isDisabled(); // 第一話だけ
+  await page.locator('.chapter').nth(0).click();
+  await page.getByRole('button', { name: 'スキップ' }).click();
+  const speech = page.locator('#opp-speech');
+  await expect(speech).toBeVisible();
+  await expect(speech).toContainText('織田信勝');
+  await expect(speech).toContainText('大うつけ'); // 最初のひとこと
+  await page.getByRole('button', { name: /もどる/ }).click();
+  await page.getByRole('button', { name: '自由対局' }).click();
+  await page.getByRole('button', { name: '対局開始' }).click();
+  await expect(page.locator('#screen-game')).toBeVisible();
+  await expect(page.locator('#opp-speech')).toBeHidden();
+});
+
+test('対戦中に、王手をかけられると、相手がセリフで反応する', async ({ page }) => {
+  // 物語の第二話（桶狭間・今川義元）。角で歩を取って王手をかけると、「王手された」セリフが出る
+  await page.goto('/?debug=1');
+  await page.getByRole('button', { name: /物語/ }).click();
+  await page.locator('.chapter').nth(1).click();
+  await page.getByRole('button', { name: 'スキップ' }).click();
+  await expect(page.locator('#opp-speech')).toContainText('海道一の弓取り');
+  await move(page, [7, 7], [7, 6]);
+  await expect(page.locator('#status')).toContainText('あなたの番です', { timeout: 15_000 });
+  await move(page, [8, 8], [3, 3]); // 角で後手の歩を取り、同時に玉(5一)に王手をかける
+  await page.locator('#promote-dialog').getByRole('button', { name: '成らない' }).click();
+  await expect(page.locator('#opp-speech')).toContainText('今川義元');
+  await expect(page.locator('#opp-speech')).toContainText('麿に王手とは、無礼な');
 });
 
 test('物語: 負けると相手のひとことが出て、次の話は開かない', async ({ page }) => {
@@ -332,7 +383,7 @@ test('物語: 負けると相手のひとことが出て、次の話は開かな
   await page.locator('#confirm-dialog').getByRole('button', { name: 'はい' }).click();
   const result = page.locator('#result-dialog');
   await expect(result.locator('#result-title')).toHaveText('負け…');
-  await expect(result.locator('#result-quote')).toContainText('伊吹 玄斎');
+  await expect(result.locator('#result-quote')).toContainText('織田信勝');
   await result.getByRole('button', { name: '話の選択へ' }).click();
   await expect(page.locator('.chapter').nth(1)).toBeDisabled();
 });
@@ -347,19 +398,23 @@ async function saveAlmostWon(page: Page, chapter: number): Promise<void> {
   );
 }
 
-test('物語: 詰ませて勝つと、勝利の会話のあと次の話が開く', async ({ page }) => {
+test('物語: 詰ませて勝つと、勝利の会話と歴史メモのあと、次の話が開く', async ({ page }) => {
   await saveAlmostWon(page, 1);
   await page.goto('/');
   await page.getByRole('button', { name: 'つづきから' }).click();
-  await expect(page.locator('#game-title')).toHaveText('第一話 稽古');
+  await expect(page.locator('#game-title')).toHaveText('信長編第一話');
   await expect(page.locator('#status')).toContainText('あなたの番です');
   await move(page, [6, 1], [5, 1]); // ▲同龍 で詰み
   const result = page.locator('#result-dialog');
   await expect(result.locator('#result-title')).toHaveText('勝ち！', { timeout: 10_000 });
   await expect(result.locator('#result-detail')).toHaveText('詰みです');
-  // 終わった対局は、つづきから再開できない
-  await result.getByRole('button', { name: 'つづきを見る' }).click();
-  await expect(page.locator('#scene-text')).toContainText('お見事');
+  await result.getByRole('button', { name: /つづきを見る/ }).click();
+  await expect(page.locator('#scene-text')).toContainText('兄上の勝ち');
+  // 会話のあとに、歴史メモが出る
+  const box = page.locator('#scene-box');
+  for (let i = 0; i < 10 && (await page.locator('#scene-speaker').innerText()) !== '歴史メモ'; i++) await box.click();
+  await expect(page.locator('#scene-speaker')).toHaveText('歴史メモ');
+  await expect(page.locator('#scene-text')).toContainText('稲生');
   await page.getByRole('button', { name: 'スキップ' }).click();
   await expect(page.locator('#screen-story')).toBeVisible();
   await expect(page.locator('.chapter').nth(0)).toContainText('済');
@@ -369,26 +424,79 @@ test('物語: 詰ませて勝つと、勝利の会話のあと次の話が開く
   await expect(page.locator('#menu-continue')).toBeHidden();
 });
 
-test('物語: 最終話に勝つと、エンディングが流れる', async ({ page }) => {
+test('物語: 編の最後の話に勝つと、語りのあと、次の編が開く', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('simple-shogi-cleared', '7'));
   await saveAlmostWon(page, 8);
   await page.goto('/');
   await page.getByRole('button', { name: 'つづきから' }).click();
+  await expect(page.locator('#game-title')).toHaveText('信長編第八話');
   await move(page, [6, 1], [5, 1]);
   await expect(page.locator('#result-title')).toHaveText('勝ち！', { timeout: 10_000 });
-  await page.getByRole('button', { name: 'つづきを見る' }).click();
-  await expect(page.locator('#scene-text')).toContainText('見事');
-  await page.getByRole('button', { name: 'スキップ' }).click(); // 勝利の会話を飛ばす → エンディング
-  await expect(page.locator('#scene-text')).toContainText('盤上の定め');
+  await page.getByRole('button', { name: /つづきを見る/ }).click();
+  await page.getByRole('button', { name: 'スキップ' }).click(); // 勝利の会話と歴史メモを飛ばす → 編の最後の語り
+  await expect(page.locator('#scene-text')).toContainText('もしも');
   await page.getByRole('button', { name: 'スキップ' }).click();
-  await expect(page.locator('.chapter:enabled')).toHaveCount(8);
+  // 秀吉編が開き、その編が選ばれた状態になる
+  await expect(page.locator('#story-notice')).toContainText('秀吉編が開きました');
+  await expect(page.locator('.arc-tab').nth(1)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.arc-tab').nth(1)).toBeEnabled();
+  await expect(page.locator('.arc-tab').nth(2)).toBeDisabled();
+  await expect(page.locator('.chapter:enabled')).toHaveCount(1);
+  await expect(page.locator('.chapter').nth(0)).toContainText('1578年');
+  await page.locator('.arc-tab').nth(0).click();
   await expect(page.locator('.chapter').nth(7)).toContainText('済');
+});
+
+test('物語: 最後の話(家康編 第八話)に勝つと、全話クリアのお知らせが出る', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('simple-shogi-cleared', '23'));
+  await saveAlmostWon(page, 24);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'つづきから' }).click();
+  await expect(page.locator('#game-title')).toHaveText('家康編第八話');
+  await move(page, [6, 1], [5, 1]);
+  await expect(page.locator('#result-title')).toHaveText('勝ち！', { timeout: 10_000 });
+  await page.getByRole('button', { name: /つづきを見る/ }).click();
+  await page.getByRole('button', { name: 'スキップ' }).click();
+  await expect(page.locator('#scene-text')).toContainText('一国一城令');
+  await page.getByRole('button', { name: 'スキップ' }).click();
+  await expect(page.locator('#story-notice')).toContainText('全 24 話クリア');
+  await expect(page.locator('.arc-tab').nth(2)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.chapter').nth(7)).toContainText('済');
+});
+
+test('物語: 信長編をクリアしていれば、話の選択は秀吉編から始まる', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('simple-shogi-cleared', '8'));
+  await page.goto('/');
+  await page.getByRole('button', { name: /物語/ }).click();
+  await expect(page.locator('.arc-tab').nth(1)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.arc-tab').nth(2)).toBeDisabled();
+  await expect(page.locator('#arc-summary')).toContainText('豊臣秀吉');
+  await expect(page.locator('.chapter:enabled')).toHaveCount(1);
+});
+
+test('古い版（葦原の乱）の物語の記録は引き継がれず、設定は残る', async ({ page }) => {
+  await page.addInitScript(() => {
+    // 最初の 1 回だけ、古い版の保存データを置く
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem('simple-shogi-schema', '1');
+    localStorage.setItem('simple-shogi-cleared', '5');
+    localStorage.setItem('simple-shogi-sound', 'false');
+    localStorage.setItem('simple-shogi-game', JSON.stringify({ mode: 'cpu', level: 3, human: 0, chapter: 3, moves: [[57, 48, 1, 0]] }));
+  });
+  await page.goto('/');
+  await expect(page.locator('#menu-continue')).toBeHidden(); // 物語の途中の対局は消えている
+  await page.getByRole('button', { name: /物語/ }).click();
+  await expect(page.locator('.chapter:enabled')).toHaveCount(1);
+  expect(await page.evaluate(() => localStorage.getItem('simple-shogi-sound'))).toBe('false');
+  expect(await page.evaluate(() => localStorage.getItem('simple-shogi-schema'))).toBe('2');
 });
 
 test('物語の進み具合は保存され、クリア済みの次の話が選べる', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('simple-shogi-cleared', '3'));
   await page.goto('/');
   await page.getByRole('button', { name: /物語/ }).click();
+  await expect(page.locator('.arc-tab').nth(1)).toBeDisabled();
   await expect(page.locator('.chapter:enabled')).toHaveCount(4);
   await expect(page.locator('.chapter').nth(2)).toContainText('済');
 });
