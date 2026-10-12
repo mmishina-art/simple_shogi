@@ -106,10 +106,27 @@ for (const s of shapes) {
   s.strokeRgb = s.stroke ? hex(s.stroke) : null;
 }
 
-/** 絵の中の点 (x, y) の色（上に重なった図形が勝つ） */
+// 絵を 32×32 のマスに分け、各マスに「かかる図形」だけを（奥から手前の順で）覚えておく
+const GRID = 32;
+const CELL = SIZE / GRID;
+const cells = Array.from({ length: GRID * GRID }, () => []);
+for (const s of shapes) {
+  const [x0, y0, x1, y1] = s.box;
+  if (x1 < 0 || y1 < 0 || x0 > SIZE || y0 > SIZE) {
+    // 画面の外まで広がる図形（背景）は、すべてのマスに入れる
+    if (!(x0 <= 0 && y0 <= 0 && x1 >= SIZE && y1 >= SIZE)) continue;
+  }
+  const gx0 = Math.max(0, Math.floor(x0 / CELL)), gx1 = Math.min(GRID - 1, Math.floor(x1 / CELL));
+  const gy0 = Math.max(0, Math.floor(y0 / CELL)), gy1 = Math.min(GRID - 1, Math.floor(y1 / CELL));
+  for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++) cells[gy * GRID + gx].push(s);
+}
+
+/** 絵の中の点 (x, y) の色（上に重なった図形が勝つ）。絵の外は、いちばん近いマスの色 */
 function colorAt(x, y) {
   let rgb = [0, 0, 0];
-  for (const s of shapes) {
+  const gx = Math.min(GRID - 1, Math.max(0, Math.floor(x / CELL)));
+  const gy = Math.min(GRID - 1, Math.max(0, Math.floor(y / CELL)));
+  for (const s of cells[gy * GRID + gx]) {
     if (x < s.box[0] || x > s.box[2] || y < s.box[1] || y > s.box[3]) continue;
     if (s.clip && !inPoly(x, y, s.clip)) continue;
     const fillColor = () => (s.fillRgb ?? (s.fill ? gradAt(s.fill, y) : null));
