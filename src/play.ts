@@ -2,6 +2,7 @@
 // ルールの判定は shogi.ts / game.ts に任せ、ここは DOM の操作だけを持つ。
 import { chooseMove } from './ai';
 import { type Game, type Result, describeResult, newGame, gameFromMoves, playMove, pieceName, resign, squareName, takeBack, fileOf } from './game';
+import { setTrack } from './music';
 import { pieceElement } from './pieces';
 import { BISHOP, GOLD, KNIGHT, LANCE, PAWN, ROOK, SILVER, SQUARES, type Move, type Side, cellKind, cellSide, findKing, isInCheck, legalMoves } from './shogi';
 import { playSound } from './sound';
@@ -260,6 +261,7 @@ function commit(move: Move): void {
 
 function finish(result: Result): void {
   const myToken = ++token;
+  setTrack(null); // 勝ち負けの音が聞こえるよう、BGM は止める
   const win = result.winner !== null && (cfg.mode === 'two' || result.winner === cfg.human);
   window.setTimeout(() => playSound(result.winner === null ? 'draw' : win ? 'win' : 'lose'), 250);
   // 最後の盤面を少し見せてから、結果を出す

@@ -10,6 +10,8 @@ export interface Character {
   /** 肩書き */
   title: string;
   look: LookKind;
+  /** しゃべり声の基準の高さ(Hz)。低いほど渋い声 */
+  voice: number;
   /** 色の組み合わせ（style.css の data-tone） */
   tone: number;
 }
@@ -39,15 +41,15 @@ export interface Chapter {
 }
 
 export const CHARACTERS: Character[] = [
-  { id: 'touma', name: '葦原 灯馬', title: '葦原家の若き当主', look: 'lord', tone: 1 },
-  { id: 'genzai', name: '伊吹 玄斎', title: '葦原家の家老', look: 'elder', tone: 2 },
-  { id: 'onikuma', name: '鬼熊', title: '峠の山賊の頭', look: 'bandit', tone: 3 },
-  { id: 'enkai', name: '円海', title: '法泉寺の僧兵', look: 'monk', tone: 4 },
-  { id: 'kaede', name: '楓', title: '霧生家の女武者', look: 'woman', tone: 5 },
-  { id: 'soun', name: '静馬 宗雲', title: '名高い軍師', look: 'strategist', tone: 6 },
-  { id: 'kagemaru', name: '影丸', title: '伊賀の忍びの頭', look: 'ninja', tone: 7 },
-  { id: 'yoshikage', name: '黒羽 義景', title: '北嶺の覇王', look: 'horns', tone: 8 },
-  { id: 'hidetsugu', name: '天城 秀嗣', title: '天下人', look: 'moon', tone: 9 },
+  { id: 'touma', name: '葦原 灯馬', title: '葦原家の若き当主', look: 'lord', voice: 220, tone: 1 },
+  { id: 'genzai', name: '伊吹 玄斎', title: '葦原家の家老', look: 'elder', voice: 150, tone: 2 },
+  { id: 'onikuma', name: '鬼熊', title: '峠の山賊の頭', look: 'bandit', voice: 105, tone: 3 },
+  { id: 'enkai', name: '円海', title: '法泉寺の僧兵', look: 'monk', voice: 135, tone: 4 },
+  { id: 'kaede', name: '楓', title: '霧生家の女武者', look: 'woman', voice: 330, tone: 5 },
+  { id: 'soun', name: '静馬 宗雲', title: '名高い軍師', look: 'strategist', voice: 185, tone: 6 },
+  { id: 'kagemaru', name: '影丸', title: '伊賀の忍びの頭', look: 'ninja', voice: 125, tone: 7 },
+  { id: 'yoshikage', name: '黒羽 義景', title: '北嶺の覇王', look: 'horns', voice: 98, tone: 8 },
+  { id: 'hidetsugu', name: '天城 秀嗣', title: '天下人', look: 'moon', voice: 118, tone: 9 },
 ];
 
 export const characterOf = (id: string): Character | undefined => CHARACTERS.find((c) => c.id === id);

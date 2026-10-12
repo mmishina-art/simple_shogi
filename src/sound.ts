@@ -1,7 +1,7 @@
 // 効果音は Web Audio で合成する（音声ファイルは持たない）。オン/オフ設定は必ず用意する。
 import { load, save } from './storage';
 
-export type SoundName = 'tap' | 'move' | 'capture' | 'check' | 'promote' | 'win' | 'lose' | 'draw';
+export type SoundName = 'tap' | 'move' | 'capture' | 'check' | 'promote' | 'win' | 'lose' | 'draw' | 'voice';
 
 let ctx: AudioContext | undefined;
 let enabled = load('sound', true);
@@ -13,7 +13,11 @@ export function setSound(on: boolean): void {
   save('sound', on);
 }
 
-function audio(): AudioContext {
+/** すでに作ってあれば、その AudioContext（作らない・resume しない） */
+export const peekAudio = (): AudioContext | undefined => ctx;
+
+/** 効果音と BGM で共有する AudioContext */
+export function audio(): AudioContext {
   ctx ??= new AudioContext();
   // iPhone では操作のあとに resume が必要
   void ctx.resume();
@@ -94,6 +98,32 @@ export function playSound(name: SoundName): void {
     }
     // テストが「どの音が鳴ったか」を確認できるようにイベントを出す
     document.dispatchEvent(new CustomEvent('app:sound', { detail: { name } }));
+  } catch {
+    // 音が出せなくても続行する
+  }
+}
+
+/** 台詞の 1 文字ぶんの「しゃべり声」（短い「ぽ」）。frequency は voiceFrequency() で決める。 */
+export function playVoice(frequency: number): void {
+  if (!enabled) return;
+  try {
+    const ac = audio();
+    const t = ac.currentTime;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(frequency * 1.06, t);
+    osc.frequency.exponentialRampToValueAtTime(frequency, t + 0.05);
+    const filter = ac.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1400;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.08, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    osc.connect(filter).connect(gain).connect(ac.destination);
+    osc.start(t);
+    osc.stop(t + 0.08);
+    document.dispatchEvent(new CustomEvent('app:sound', { detail: { name: 'voice' satisfies SoundName, frequency } }));
   } catch {
     // 音が出せなくても続行する
   }
