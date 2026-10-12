@@ -40,9 +40,9 @@ Vite + TypeScript + vite-plugin-pwa + Vitest + Playwright + ESLint。UI フレ�
 
 ## 構成
 
-- `src/shogi.ts`(ルール)、`src/game.ts`(対局の記録・終局判定)、`src/ai.ts`(CPU)、`src/story.ts` と `src/story-data/`(物語のデータ)、`src/talk.ts`(対局中のセリフ選び): DOM に触れない純関数にして `tests/` で単体テストする。ルールを変えたら `tests/shogi.test.ts` の perft(合法手の数え上げ)が通ることを確認する。
-- `src/main.ts`(画面の切り替え)、`src/play.ts`(対局画面)、`src/scene.ts` / `src/portrait.ts`(会話シーン)、`src/pieces.ts`(駒の見た目): DOM の操作だけ。`src/sound.ts`(効果音)、`src/storage.ts`(保存)、`src/pwa.ts`(更新ボタン)、`src/install.ts`(インストール方法の説明)。
-- 保存キーは `simple-shogi-` で始まる(`game`: 途中の対局、`cleared`: 物語のクリア数(0〜24、通し番号)、`sound`: 効果音、`bgm`: BGM)。**キー名は変えない。**
+- `src/shogi.ts`(ルール)、`src/game.ts`(対局の記録・終局判定)、`src/ai.ts`(CPU)、`src/story.ts` と `src/story-data/`(物語のデータ)、`src/talk.ts`(対局中のセリフ選び)、`src/tutorial.ts`(チュートリアルのレッスンと目標の判定): DOM に触れない純関数にして `tests/` で単体テストする。ルールを変えたら `tests/shogi.test.ts` の perft(合法手の数え上げ)が通ることを確認する。
+- `src/main.ts`(画面の切り替え)、`src/play.ts`(対局画面)、`src/tutorial-view.ts`(チュートリアルの練習盤)、`src/scene.ts` / `src/portrait.ts`(会話シーン)、`src/pieces.ts`(駒の見た目): DOM の操作だけ。`src/sound.ts`(効果音)、`src/storage.ts`(保存)、`src/pwa.ts`(更新ボタン)、`src/install.ts`(インストール方法の説明)。
+- 保存キーは `simple-shogi-` で始まる(`game`: 途中の対局、`cleared`: 物語のクリア数(0〜24、通し番号)、`sound`: 効果音、`bgm`: BGM、`tutorial`: できたレッスンの番号の一覧)。**キー名は変えない。**
 - `vite.config.ts`: アプリ名・色・manifest。`index.html` の `theme-color`・タイトルと合わせて書き換える。
 - `scripts/check-dist.mjs`: ビルド成果物が PWA として成立しているかの検査。
 - 画面の部品や機能を足すときは、ファイルを `src/` に分ける。Service Worker のファイル一覧は**自動生成**なので手で更新しない。

@@ -3,6 +3,8 @@ import { type Game, type SavedMove, decodeMoves, describeResult, encodeMoves, ga
 import { setupInstallGuide } from './install';
 import { isBgmOn, setBgm, setTrack, type TrackName } from './music';
 import { initPlay, startPlay } from './play';
+import { LESSONS } from './tutorial';
+import { initTutorial, lessonCount, openLesson } from './tutorial-view';
 import { setupUpdateBanner } from './pwa';
 import { runScene } from './scene';
 import type { Side } from './shogi';
@@ -13,7 +15,7 @@ import { byId } from './ui';
 
 migrateStorage();
 
-type ScreenName = 'title' | 'story' | 'free' | 'game' | 'scene';
+type ScreenName = 'title' | 'story' | 'free' | 'game' | 'scene' | 'lessons' | 'lesson';
 
 interface Launch {
   mode: 'cpu' | 'two';
@@ -32,7 +34,7 @@ const FREE_LEVELS: Record<number, string> = { 2: 'やさしい', 4: 'ふつう',
 const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 
 /** 画面ごとの BGM（対局と会話は、始めるときに別に決める） */
-const SCREEN_TRACK: Partial<Record<ScreenName, TrackName>> = { title: 'title', story: 'map', free: 'map' };
+const SCREEN_TRACK: Partial<Record<ScreenName, TrackName>> = { title: 'title', story: 'map', free: 'map', lessons: 'map', lesson: 'map' };
 
 function show(name: ScreenName): void {
   const track = SCREEN_TRACK[name];
@@ -90,12 +92,66 @@ byId('menu-free').addEventListener('click', () => {
   playSound('tap');
   show('free');
 });
-byId('menu-rules').addEventListener('click', () => byId<HTMLDialogElement>('rules-dialog').showModal());
+byId('menu-rules').addEventListener('click', () => {
+  playSound('tap');
+  showLessons();
+});
 byId('menu-settings').addEventListener('click', () => byId<HTMLDialogElement>('settings-dialog').showModal());
 
 document.querySelectorAll<HTMLDialogElement>('dialog').forEach((dialog) => {
   dialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => dialog.close()));
 });
+
+// ---- チュートリアル ----
+
+/** できたレッスンの番号（保存されている） */
+const doneLessons = (): number[] => {
+  const raw = load<unknown>('tutorial', []);
+  return Array.isArray(raw) ? raw.filter((n): n is number => Number.isInteger(n) && n >= 0 && n < lessonCount()) : [];
+};
+
+function showLessons(): void {
+  const done = new Set(doneLessons());
+  const list = byId('lesson-list');
+  list.replaceChildren();
+  LESSONS.forEach(({ title }, i) => {
+    const li = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'chapter';
+    const parts: [string, string][] = [
+      ['ch-num', `レッスン ${i + 1}`],
+      ['ch-title', title],
+      ['ch-meta', ''],
+      ['ch-state', done.has(i) ? '済' : ''],
+    ];
+    for (const [cls, text] of parts) {
+      const span = document.createElement('span');
+      span.className = cls;
+      span.textContent = text;
+      button.append(span);
+    }
+    button.setAttribute('aria-label', `レッスン ${i + 1} ${title}${done.has(i) ? ' できた' : ''}`);
+    button.addEventListener('click', () => {
+      playSound('tap');
+      show('lesson');
+      openLesson(i);
+    });
+    li.append(button);
+    list.append(li);
+  });
+  show('lessons');
+}
+
+initTutorial({
+  onDone: (i) => {
+    const done = new Set(doneLessons());
+    if (!done.has(i)) save('tutorial', [...done, i].sort((a, b) => a - b));
+  },
+  onList: showLessons,
+});
+byId('lessons-back').addEventListener('click', showTitle);
+byId('lessons-rules').addEventListener('click', () => byId<HTMLDialogElement>('rules-dialog').showModal());
 
 // ---- 物語 ----
 
