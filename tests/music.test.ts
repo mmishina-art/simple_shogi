@@ -85,11 +85,15 @@ describe('しゃべり声', () => {
     expect(voiceFrequency(200, '戦')).toBe(voiceFrequency(200, '戦'));
   });
 
-  it('人物ごとに声の高さが違い、女性は高く、敵の大将は低い', () => {
+  it('人物ごとに声の高さが違い、若い人は高く、老将は低い', () => {
     const voices = CHARACTERS.map((c) => c.voice);
     expect(new Set(voices).size).toBe(voices.length);
+    for (const v of voices) {
+      expect(v).toBeGreaterThanOrEqual(80);
+      expect(v).toBeLessThan(300);
+    }
     const by = (id: string): number => CHARACTERS.find((c) => c.id === id)!.voice;
-    expect(by('kaede')).toBeGreaterThan(by('touma'));
-    expect(by('yoshikage')).toBeLessThan(by('genzai'));
+    expect(by('hideyori')).toBeGreaterThan(by('shingen')); // 若い秀頼は、信玄より高い
+    expect(by('nobukatsu')).toBeGreaterThan(by('nobunaga'));
   });
 });

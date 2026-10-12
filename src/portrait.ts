@@ -19,6 +19,24 @@ const KABUTO =
   '<path class="p-trim" d="M34 52 Q60 40 86 52 L86 56 Q60 44 34 56 Z"/>';
 
 const OVERLAYS: Record<LookKind, string> = {
+  // 武将: 前立てのない兜と、口ひげ
+  samurai:
+    KABUTO +
+    '<path class="p-metal" d="M56 26 L60 10 L64 26 Z"/>' +
+    '<path class="p-hair" d="M46 72 Q60 66 74 72 Q60 77 46 72 Z"/>' +
+    FIERCE_BROWS + EYES + STERN_MOUTH,
+  // 公家風: 烏帽子、白く塗った顔、まるい眉、おはぐろの口
+  noble:
+    '<path class="p-hair" d="M38 46 Q40 4 60 2 Q80 4 82 46 Q60 38 38 46 Z"/>' +
+    '<ellipse class="p-white" cx="60" cy="64" rx="19" ry="21" opacity="0.55"/>' +
+    '<circle class="p-ink" cx="49" cy="49" r="2.8"/><circle class="p-ink" cx="71" cy="49" r="2.8"/>' +
+    EYES + '<ellipse class="p-ink" cx="60" cy="77" rx="4" ry="2"/>',
+  // 白い毛をたらした兜（武田信玄の「諏訪法性」の兜をイメージ）
+  whitemane:
+    KABUTO +
+    '<path class="p-white" d="M44 24 Q60 -8 76 24 Q60 10 44 24 Z"/>' +
+    '<path class="p-white" d="M28 54 Q16 92 34 104 L40 76 Z M92 54 Q104 92 86 104 L80 76 Z"/>' +
+    FIERCE_BROWS + EYES + STERN_MOUTH,
   lord:
     '<path class="p-hair" d="M35 52 Q36 26 60 24 Q84 26 85 52 Q60 36 35 52 Z"/><ellipse class="p-hair" cx="60" cy="20" rx="7" ry="6"/>' +
     '<rect class="p-red" x="34" y="42" width="52" height="6" rx="3"/>' +

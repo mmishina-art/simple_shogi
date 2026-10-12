@@ -1,8 +1,13 @@
-// ストーリーモード「葦原の乱」のデータ。登場人物・各話の会話・対戦相手の強さ。
-// すべて架空の物語で、実在の人物・団体とは関係ありません。
+// ストーリーモード「戦国三英雄伝」のデータ。信長編・秀吉編・家康編（各 8 話、全 24 話）。
+// 実際の歴史にもとづく。合戦の相手は、その合戦で戦った武将。細部に諸説あるものは、各話の文章に「諸説あり」と書く。
+// 将棋の対局は、合戦を追体験するための演出で、勝敗は史実とは限らない（史実との違いは「歴史メモ」で説明する）。
+import { HIDEYOSHI, HIDEYOSHI_EPILOGUE } from './story-data/hideyoshi';
+import { IEYASU, IEYASU_EPILOGUE } from './story-data/ieyasu';
+import { NOBUNAGA, NOBUNAGA_EPILOGUE } from './story-data/nobunaga';
+import { HIDEYOSHI_TALK, IEYASU_TALK, NOBUNAGA_TALK } from './story-data/talk';
+import type { ChapterData, Line, LookKind, Place, Talk } from './story-types';
 
-/** 顔のイラストの種類（描き分けは portrait.ts） */
-export type LookKind = 'lord' | 'elder' | 'bandit' | 'monk' | 'woman' | 'strategist' | 'ninja' | 'horns' | 'moon';
+export type { ChapterData, Line, LookKind, Place, Talk };
 
 export interface Character {
   id: string;
@@ -16,221 +21,122 @@ export interface Character {
   tone: number;
 }
 
-export interface Line {
-  /** 話す人の id。'narr' は地の文 */
-  who: string;
-  text: string;
+export type ArcId = 'nobunaga' | 'hideyoshi' | 'ieyasu';
+
+export interface Arc {
+  id: ArcId;
+  /** 編の名前 */
+  name: string;
+  /** 短い名前（対局画面の題に使う） */
+  short: string;
+  /** 主人公（プレイヤー）の id */
+  hero: string;
+  /** 主人公の生きた年 */
+  period: string;
+  summary: string;
+  /** この編の最初の話の番号 */
+  first: number;
+  /** この編の最後の話の番号 */
+  last: number;
+  /** 最後の話に勝ったあとの語り */
+  epilogue: Line[];
 }
 
-export type Place = 'castle' | 'pass' | 'temple' | 'plain' | 'strategy' | 'night' | 'fortress' | 'tenka';
-
-export interface Chapter {
+export interface Chapter extends ChapterData {
+  /** 対局中の、対戦相手のセリフ */
+  talk: Talk;
+  /** 全体の通し番号（1〜24） */
   id: number;
-  title: string;
-  place: Place;
-  placeName: string;
-  /** 対戦相手の id */
-  opponent: string;
-  /** CPU の強さ（1〜8） */
+  arc: ArcId;
+  /** 編の中での番号（1〜8） */
+  no: number;
+  /** CPU の強さ（1〜8）。話が進むほど強くなる */
   level: number;
-  intro: Line[];
-  /** 勝ったあとの会話 */
-  win: Line[];
-  /** 負けたときの相手のひとこと */
-  loseQuote: Line;
 }
 
 export const CHARACTERS: Character[] = [
-  { id: 'touma', name: '葦原 灯馬', title: '葦原家の若き当主', look: 'lord', voice: 220, tone: 1 },
-  { id: 'genzai', name: '伊吹 玄斎', title: '葦原家の家老', look: 'elder', voice: 150, tone: 2 },
-  { id: 'onikuma', name: '鬼熊', title: '峠の山賊の頭', look: 'bandit', voice: 105, tone: 3 },
-  { id: 'enkai', name: '円海', title: '法泉寺の僧兵', look: 'monk', voice: 135, tone: 4 },
-  { id: 'kaede', name: '楓', title: '霧生家の女武者', look: 'woman', voice: 330, tone: 5 },
-  { id: 'soun', name: '静馬 宗雲', title: '名高い軍師', look: 'strategist', voice: 185, tone: 6 },
-  { id: 'kagemaru', name: '影丸', title: '伊賀の忍びの頭', look: 'ninja', voice: 125, tone: 7 },
-  { id: 'yoshikage', name: '黒羽 義景', title: '北嶺の覇王', look: 'horns', voice: 98, tone: 8 },
-  { id: 'hidetsugu', name: '天城 秀嗣', title: '天下人', look: 'moon', voice: 118, tone: 9 },
+  { id: 'nobunaga', name: '織田信長', title: '尾張の大名', look: 'horns', voice: 112, tone: 1 },
+  { id: 'nobukatsu', name: '織田信勝', title: '信長の弟', look: 'lord', voice: 210, tone: 2 },
+  { id: 'yoshimoto', name: '今川義元', title: '駿河の大大名', look: 'noble', voice: 160, tone: 3 },
+  { id: 'tatsuoki', name: '斎藤龍興', title: '美濃の大名', look: 'lord', voice: 230, tone: 4 },
+  { id: 'nagamasa', name: '浅井長政', title: '近江の大名', look: 'samurai', voice: 150, tone: 5 },
+  { id: 'shingen', name: '武田信玄', title: '甲斐の虎', look: 'whitemane', voice: 100, tone: 6 },
+  { id: 'katsuyori', name: '武田勝頼', title: '信玄の四男', look: 'moon', voice: 130, tone: 7 },
+  { id: 'kennyo', name: '顕如', title: '石山本願寺の法主', look: 'monk', voice: 140, tone: 8 },
+  { id: 'mitsuhide', name: '明智光秀', title: '織田家の重臣', look: 'strategist', voice: 175, tone: 9 },
+  { id: 'hideyoshi', name: '羽柴(豊臣)秀吉', title: '織田家の家臣、のち天下人', look: 'lord', voice: 240, tone: 10 },
+  { id: 'nagaharu', name: '別所長治', title: '三木城の城主', look: 'lord', voice: 250, tone: 11 },
+  { id: 'tsuneie', name: '吉川経家', title: '鳥取城の守将', look: 'samurai', voice: 135, tone: 12 },
+  { id: 'munekiyo', name: '清水宗治', title: '高松城の城主', look: 'elder', voice: 145, tone: 13 },
+  { id: 'katsuie', name: '柴田勝家', title: '織田家の筆頭家老', look: 'bandit', voice: 108, tone: 14 },
+  { id: 'ieyasu', name: '徳川家康', title: '三河の大名', look: 'samurai', voice: 165, tone: 15 },
+  { id: 'yoshihisa', name: '島津義久', title: '薩摩の大名', look: 'samurai', voice: 120, tone: 16 },
+  { id: 'ujimasa', name: '北条氏政', title: '小田原の大名', look: 'noble', voice: 155, tone: 17 },
+  { id: 'masanobu', name: '本多正信', title: '家康の家臣', look: 'strategist', voice: 185, tone: 18 },
+  { id: 'kanetsugu', name: '直江兼続', title: '上杉家の重臣', look: 'moon', voice: 170, tone: 19 },
+  { id: 'mitsunari', name: '石田三成', title: '豊臣家の奉行', look: 'strategist', voice: 200, tone: 20 },
+  { id: 'nobushige', name: '真田信繁', title: '大坂城の武将', look: 'horns', voice: 190, tone: 21 },
+  { id: 'hideyori', name: '豊臣秀頼', title: '秀吉の子', look: 'lord', voice: 215, tone: 22 },
 ];
 
 export const characterOf = (id: string): Character | undefined => CHARACTERS.find((c) => c.id === id);
 
-export const CHAPTERS: Chapter[] = [
+const PER_ARC = 8;
+
+export const ARCS: Arc[] = [
   {
-    id: 1,
-    title: '稽古',
-    place: 'castle',
-    placeName: '葦原城',
-    opponent: 'genzai',
-    level: 1,
-    intro: [
-      { who: 'narr', text: '時は戦国。応仁の乱より百年あまり、日ノ本は群雄が入り乱れ、戦の火は絶えることがなかった。' },
-      { who: 'narr', text: 'そんな世に、ただ一つ、古くから守られてきた約束がある。「盤上の定め」。' },
-      { who: 'narr', text: '領地も同盟も、ときには和睦さえも、将棋の一局で決める習わしである。盤は戦場の縮図、駒は兵。国と民の血を流さぬための、先人の知恵であった。' },
-      { who: 'narr', text: 'ところが、その約束を踏みにじる者が現れた。北嶺の覇王・黒羽義景。ひとたび兵を挙げ、小国・葦原を攻め落としたのだ。' },
-      { who: 'genzai', text: '灯馬さま。お父上、頼孝さまは、最後まで盤上の定めを信じておられました。' },
-      { who: 'touma', text: '……わかっている、玄斎。城は焼かれたが、民はまだ生きている。父上の志を、俺が継ぐ。' },
-      { who: 'genzai', text: 'ならば、まずはこの老いぼれと一局。腕を確かめさせていただきましょう。手加減は無用ですぞ。' },
-    ],
-    win: [
-      { who: 'genzai', text: 'お見事……！ いつのまに、これほどの手を。お父上の面影が見えましたぞ。' },
-      { who: 'touma', text: '玄斎の教えのおかげだ。さあ、旅に出よう。味方を集め、黒羽を止める。' },
-      { who: 'genzai', text: 'はっ。まずは街道の峠へ。ですが、あそこには山賊が居座っておりまする。' },
-    ],
-    loseQuote: { who: 'genzai', text: 'まだまだ、若。駒の動きを一つずつ思い出しなされ。' },
+    id: 'nobunaga',
+    name: '信長編',
+    short: '信長編',
+    hero: 'nobunaga',
+    period: '1534〜1582年',
+    summary: '尾張の「うつけ」から、天下布武をかかげて、天下統一に迫った織田信長。',
+    first: 1,
+    last: PER_ARC,
+    epilogue: NOBUNAGA_EPILOGUE,
   },
   {
-    id: 2,
-    title: '峠の関所',
-    place: 'pass',
-    placeName: '鬼ヶ峠',
-    opponent: 'onikuma',
-    level: 2,
-    intro: [
-      { who: 'narr', text: '街道の峠には、勝手に関所を構えた山賊がいた。' },
-      { who: 'onikuma', text: 'おう、止まれ止まれ！ ここを通りたきゃ、通行料を置いていきな。金か、でなきゃ命だ。' },
-      { who: 'touma', text: '金はない。だが、盤上の定めなら受けて立つ。一局指して、俺が勝ったら通してもらう。' },
-      { who: 'onikuma', text: 'ぶははっ、盤上の定めだと？ 黒羽の野郎が破って以来、そんなもん守る奴ぁいねえよ。……だが面白え、乗ってやる！' },
-    ],
-    win: [
-      { who: 'onikuma', text: 'ま、参った……。力でも駒でも、この鬼熊が負けるとはな。' },
-      { who: 'touma', text: '約束通り、通してもらう。' },
-      { who: 'onikuma', text: '待ちな、若造。気に入った。この先の法泉寺に、俺の昔なじみの坊主がいる。俺の名を出せば、話くらいは聞いてくれるだろうよ。' },
-    ],
-    loseQuote: { who: 'onikuma', text: 'がっはっは！ 出直してきな、若造！' },
+    id: 'hideyoshi',
+    name: '秀吉編',
+    short: '秀吉編',
+    hero: 'hideyoshi',
+    period: '1537〜1598年',
+    summary: '農民の子から出世して、信長のあとを継ぎ、天下を統一した豊臣秀吉。',
+    first: PER_ARC + 1,
+    last: PER_ARC * 2,
+    epilogue: HIDEYOSHI_EPILOGUE,
   },
   {
-    id: 3,
-    title: '法泉寺の問答',
-    place: 'temple',
-    placeName: '法泉寺',
-    opponent: 'enkai',
-    level: 3,
-    intro: [
-      { who: 'narr', text: '山深い古寺・法泉寺。そこには、寺を守る僧兵たちが暮らしていた。' },
-      { who: 'enkai', text: '鬼熊の名を出す者とは、お主か。ここは仏の庭、軽々しく兵を借りに来る場所ではない。' },
-      { who: 'touma', text: '兵を借りに来たのではない。黒羽は、盤上の定めを破って民を傷つけた。この寺の僧は、それを黙って見ているのか。' },
-      { who: 'enkai', text: '……口は達者なようじゃ。ならば拙僧と一局。駒の動かし方に、お主の心が出る。' },
-    ],
-    win: [
-      { who: 'enkai', text: '焦らず、欲張らず、それでいて退かぬ。……迷いのない良い指し回しじゃった。' },
-      { who: 'enkai', text: '寺の僧兵は貸せぬ。じゃが、この寺に伝わる情報なら授けよう。黒羽は北の砦に兵を集めておる。南の霧生家を、背後から襲うつもりじゃ。' },
-      { who: 'touma', text: '霧生家……。ならば、先に会いに行かねば。' },
-    ],
-    loseQuote: { who: 'enkai', text: '南無……。心を静めて、もう一度参られよ。' },
-  },
-  {
-    id: 4,
-    title: '霧生の女武者',
-    place: 'plain',
-    placeName: '霧生の野',
-    opponent: 'kaede',
-    level: 4,
-    intro: [
-      { who: 'narr', text: '霧の立ちこめる南の野。霧生家の若き女武者・楓が、見慣れぬ旅人に刀の柄をかけた。' },
-      { who: 'kaede', text: '何者だ。名を名乗れ。黒羽の使いなら、ここで斬る。' },
-      { who: 'touma', text: '葦原灯馬。黒羽に城を焼かれた者だ。あなたたちが次に狙われると、伝えに来た。' },
-      { who: 'kaede', text: '……葦原の。証を立てよ。刀ではなく、盤で。我らは盤上でしか、人を信じぬ。' },
-    ],
-    win: [
-      { who: 'kaede', text: '負けた。……疑って悪かった。あなたの指す手は、嘘をつかぬ手だ。' },
-      { who: 'kaede', text: '霧生家は葦原と同盟を結ぼう。我が一族の兵、あなたに預ける。だが気をつけて。黒羽の陰には、恐るべき軍師がいる。' },
-      { who: 'touma', text: '軍師……。静馬宗雲だな。' },
-    ],
-    loseQuote: { who: 'kaede', text: 'この程度では、黒羽には届かない。もう一局だ。' },
-  },
-  {
-    id: 5,
-    title: '軍師の罠',
-    place: 'strategy',
-    placeName: '評定の間',
-    opponent: 'soun',
-    level: 5,
-    intro: [
-      { who: 'narr', text: '霧生家の城に、黒羽方の使者として一人の男が訪れた。名高い軍師・静馬宗雲である。' },
-      { who: 'soun', text: 'これはこれは、葦原の若君。黒羽さまは寛大にも、降伏すれば命だけは助けると仰せです。' },
-      { who: 'touma', text: '断る。降伏など、父上が許さない。' },
-      { who: 'soun', text: 'ふふ、ならば盤上でお決めになりますか。私は一手先ではなく、十手先の駒を動かします。……さて、見抜けますかな。' },
-    ],
-    win: [
-      { who: 'soun', text: '……罠を見破られたか。十手先を見るとは、若君もたいした御仁だ。' },
-      { who: 'soun', text: '一つ教えて差し上げよう。黒羽さまは今宵、あなたの寝首をかく手を打たれた。伊賀の忍びを放ったのです。' },
-      { who: 'touma', text: '何だと……！' },
-    ],
-    loseQuote: { who: 'soun', text: '駒は、動かす前に勝負が決まるもの。出直しなされ。' },
-  },
-  {
-    id: 6,
-    title: '月夜の忍び',
-    place: 'night',
-    placeName: '霧生城 月夜の庭',
-    opponent: 'kagemaru',
-    level: 6,
-    intro: [
-      { who: 'narr', text: '月のない夜。灯馬の寝所に、音もなく黒い影が降りた。' },
-      { who: 'kagemaru', text: '……動くな。その首、黒羽さまの命により頂戴する。' },
-      { who: 'touma', text: '刀を抜く前に聞け。お前たち忍びは、金で動くのだろう。ならば、盤上の定めを知っているはずだ。' },
-      { who: 'kagemaru', text: '……（息を呑む）なるほど、肝の据わった小僧。よかろう、一局だ。負ければ、お前の首は夜明けまでに頂く。' },
-    ],
-    win: [
-      { who: 'kagemaru', text: '影の動きを読むとは……。我が主は、お前を侮りすぎたようだ。' },
-      { who: 'kagemaru', text: '約束は約束。今夜は退こう。……ひとつ、礼に教えてやる。黒羽は北嶺の本城で、お前を待っている。' },
-      { who: 'touma', text: '決着をつけに行く。父上の仇として。' },
-    ],
-    loseQuote: { who: 'kagemaru', text: '……遅い。影は、すでに背後にいる。' },
-  },
-  {
-    id: 7,
-    title: '北嶺の覇王',
-    place: 'fortress',
-    placeName: '北嶺城',
-    opponent: 'yoshikage',
-    level: 7,
-    intro: [
-      { who: 'narr', text: '雪をいただく北嶺の城。灯馬は味方の旗とともに、巨大な城門の前に立った。' },
-      { who: 'yoshikage', text: 'ほう、よく来たな、葦原の小倅。頼孝の最期は、見事であったぞ。' },
-      { who: 'touma', text: '黒羽義景。盤上の定めを破ったその口で、父上の名を語るな。' },
-      { who: 'yoshikage', text: '定めだと？ 弱き者の言い訳よ。……だが、お前がそれほど言うなら受けてやろう。俺に勝てたなら、軍を退いてやる。' },
-      { who: 'touma', text: '二言はないな。' },
-    ],
-    win: [
-      { who: 'yoshikage', text: '……馬鹿な。この俺が、盤上で……。' },
-      { who: 'yoshikage', text: '見事だ、灯馬。約束だ、兵は退く。……だが覚えておけ。この乱世を真に終わらせんとする男が、まだ上にいる。' },
-      { who: 'touma', text: '天下人……天城秀嗣。' },
-      { who: 'yoshikage', text: '奴は盤上の定めなど、とうに信じておらぬ。行くなら覚悟して行け。' },
-    ],
-    loseQuote: { who: 'yoshikage', text: 'ふん、その程度で俺に挑んだのか。' },
-  },
-  {
-    id: 8,
-    title: '天下一番',
-    place: 'tenka',
-    placeName: '天守閣',
-    opponent: 'hidetsugu',
-    level: 8,
-    intro: [
-      { who: 'narr', text: '天下統一まであと一歩。都の天守に座す男、天城秀嗣が、静かに灯馬を迎えた。' },
-      { who: 'hidetsugu', text: '葦原の若き当主。黒羽を盤上で破ったそうだな。……面白い。その腕、見せてもらおう。' },
-      { who: 'touma', text: '天下を取るのに、これ以上の血は要らない。俺が勝ったら、すべての領主に盤上の定めを守らせる。' },
-      { who: 'hidetsugu', text: '甘いな。人は力でしかまとまらぬ。……だが、お前の盤が本物なら、この秀嗣も認めよう。さあ、天下一番の一局を始めようか。' },
-    ],
-    win: [
-      { who: 'hidetsugu', text: '……見事。力ではなく、一手一手の積み重ねが、これほどの重さを持つとは。' },
-      { who: 'hidetsugu', text: '負けは負けだ。天城秀嗣、盤上の定めに従おう。……灯馬、お前が決めよ。この国のかたちを。' },
-    ],
-    loseQuote: { who: 'hidetsugu', text: '天下は、まだ遠いな。もう一度、挑んでみせよ。' },
+    id: 'ieyasu',
+    name: '家康編',
+    short: '家康編',
+    hero: 'ieyasu',
+    period: '1543〜1616年',
+    summary: '人質の時代から、長くがまんして、江戸幕府を開いた徳川家康。',
+    first: PER_ARC * 2 + 1,
+    last: PER_ARC * 3,
+    epilogue: IEYASU_EPILOGUE,
   },
 ];
 
-export const ENDING: Line[] = [
-  { who: 'narr', text: '天城秀嗣は兵を退き、日ノ本の諸侯は、再び「盤上の定め」を守ることを誓った。' },
-  { who: 'narr', text: '灯馬は城に戻り、焼け跡に新しい葦原の城を築いた。そこには、民も、鬼熊も、円海も、楓も、そして玄斎の笑顔もあった。' },
-  { who: 'genzai', text: '灯馬さま。お父上も、きっと天から喜んでおられますぞ。' },
-  { who: 'touma', text: '戦を終わらせたのは、刀ではなく、一手一手を重ねる心だった。……父上、俺は、これからも盤に向かうよ。' },
-  { who: 'narr', text: 'こうして乱世は終わりを告げ、盤の音が響く、穏やかな時代が始まった。―― 完 ――' },
+const DATA: [ArcId, ChapterData[], Talk[]][] = [
+  ['nobunaga', NOBUNAGA, NOBUNAGA_TALK],
+  ['hideyoshi', HIDEYOSHI, HIDEYOSHI_TALK],
+  ['ieyasu', IEYASU, IEYASU_TALK],
 ];
 
-/** 章の番号を漢数字にする（第一話 など） */
-export function chapterLabel(n: number): string {
+/** 全 24 話。CPU の強さは、全体を通して 1 → 8 に、だんだん強くなる（3 話ごとに 1 段階） */
+export const CHAPTERS: Chapter[] = DATA.flatMap(([arc, list, talks], a) =>
+  list.map((data, i) => {
+    const id = a * PER_ARC + i + 1;
+    return { ...data, talk: talks[i], id, arc, no: i + 1, level: Math.ceil(id / 3) };
+  }),
+);
+
+export const arcOf = (chapter: Chapter): Arc => ARCS.find((a) => a.id === chapter.arc) as Arc;
+
+/** 話の番号を漢数字にする（第一話 など） */
+export function chapterLabel(no: number): string {
   const digits = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
-  return `第${digits[n] ?? String(n)}話`;
+  return `第${digits[no] ?? String(no)}話`;
 }

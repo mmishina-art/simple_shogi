@@ -6,7 +6,7 @@ PWA アプリ(ツール/ゲーム)の共通テンプレート。**新しいア�
 
 ## このアプリの方針(新規作成時に記入)
 
-- アプリの概要: 戦国時代を舞台にした、和風の将棋アプリ(CPU 対戦・ふたり対戦・ストーリーモード「葦原の乱」)。
+- アプリの概要: 戦国の三英雄(信長・秀吉・家康)を題材に、日本史を学べる和風の将棋アプリ(CPU 対戦・ふたり対戦・ストーリーモード「戦国三英雄伝」)。
 - 配色: **暗い固定**(墨色の地に、金と朱)。`src/style.css` の変数、`index.html` の `theme-color` / `color-scheme`、`vite.config.ts` の色をそろえている。
 - 公開 URL: https://mmishina-art.github.io/simple_shogi/
 - 追加した拡張: なし(UI フレームワークもバックエンドも入れていない。CPU は同じスレッドで、持ち時間つきの探索で動かす)
@@ -39,9 +39,9 @@ Vite + TypeScript + vite-plugin-pwa + Vitest + Playwright + ESLint。UI フレ�
 
 ## 構成
 
-- `src/shogi.ts`(ルール)、`src/game.ts`(対局の記録・終局判定)、`src/ai.ts`(CPU)、`src/story.ts`(物語のデータ): DOM に触れない純関数にして `tests/` で単体テストする。ルールを変えたら `tests/shogi.test.ts` の perft(合法手の数え上げ)が通ることを確認する。
+- `src/shogi.ts`(ルール)、`src/game.ts`(対局の記録・終局判定)、`src/ai.ts`(CPU)、`src/story.ts` と `src/story-data/`(物語のデータ)、`src/talk.ts`(対局中のセリフ選び): DOM に触れない純関数にして `tests/` で単体テストする。ルールを変えたら `tests/shogi.test.ts` の perft(合法手の数え上げ)が通ることを確認する。
 - `src/main.ts`(画面の切り替え)、`src/play.ts`(対局画面)、`src/scene.ts` / `src/portrait.ts`(会話シーン)、`src/pieces.ts`(駒の見た目): DOM の操作だけ。`src/sound.ts`(効果音)、`src/storage.ts`(保存)、`src/pwa.ts`(更新ボタン)、`src/install.ts`(インストール方法の説明)。
-- 保存キーは `simple-shogi-` で始まる(`game`: 途中の対局、`cleared`: 物語のクリア数、`sound`: 効果音)。**キー名は変えない。**
+- 保存キーは `simple-shogi-` で始まる(`game`: 途中の対局、`cleared`: 物語のクリア数(0〜24、通し番号)、`sound`: 効果音、`bgm`: BGM)。**キー名は変えない。**
 - `vite.config.ts`: アプリ名・色・manifest。`index.html` の `theme-color`・タイトルと合わせて書き換える。
 - `scripts/check-dist.mjs`: ビルド成果物が PWA として成立しているかの検査。
 - 画面の部品や機能を足すときは、ファイルを `src/` に分ける。Service Worker のファイル一覧は**自動生成**なので手で更新しない。
@@ -93,6 +93,13 @@ Vite + TypeScript + vite-plugin-pwa + Vitest + Playwright + ESLint。UI フレ�
 - ロジックは純関数にして Vitest で単体テストする(`tests/*.test.ts`)。
 - 画面操作は Playwright(Pixel 7、`reducedMotion: 'reduce'` が既定)。build 済みの成果物を `vite preview` で配信してテストする。乱数は固定する。アニメーションを見るテストだけ `test.use({ reducedMotion: 'no-preference' })` で解除し、短命な中間状態は直接 assert せず `MutationObserver` で記録する。効果音は `app:sound` イベントで確認する。
 - データ駆動のアプリ(クイズなど)は、データの検証テストを書く(件数、重複、必須項目)。
+
+## 物語(歴史)の書き方
+
+- **史実にもとづく。** 年代・人名・出来事は、確かなものだけを書く。人数・日数など諸説あるものは「諸説あり」と書き、後世の創作とされるものは、そう明記する(歴史メモで説明する)。史実と違う盤上の結果は、会話と歴史メモで区別する。
+- 各話に、対局前の会話(背景の説明)・勝利後の会話・歴史メモ・負けたときのひとこと・対局中のセリフ(`talk`)を必ずそろえる。`tests/story.test.ts` が確認する。
+- 対戦相手は、その合戦で実際に戦った武将。CPU の強さは、全体を通して弱くならない(3話ごとに1段階)。
+- 物語の話の番号(通し番号 1〜24)を変えたら、`SCHEMA_VERSION` を上げ、`src/storage.ts` の `migrate()` で保存データ(`cleared`、物語の途中の `game`)を移行する。
 
 ## 入力と表示
 

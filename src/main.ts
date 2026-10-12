@@ -8,7 +8,7 @@ import { runScene } from './scene';
 import type { Side } from './shogi';
 import { isSoundOn, playSound, setSound } from './sound';
 import { exportBackup, importBackup, load, migrateStorage, requestPersist, save } from './storage';
-import { CHAPTERS, ENDING, type Chapter, chapterLabel, characterOf } from './story';
+import { ARCS, CHAPTERS, type Arc, type Chapter, arcOf, chapterLabel, characterOf } from './story';
 import { byId } from './ui';
 
 migrateStorage();
@@ -33,8 +33,6 @@ const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 
 /** 画面ごとの BGM（対局と会話は、始めるときに別に決める） */
 const SCREEN_TRACK: Partial<Record<ScreenName, TrackName>> = { title: 'title', story: 'map', free: 'map' };
-/** 第七話・第八話の対局は、強敵の曲 */
-const BOSS_FROM = 7;
 
 function show(name: ScreenName): void {
   const track = SCREEN_TRACK[name];
@@ -101,11 +99,47 @@ document.querySelectorAll<HTMLDialogElement>('dialog').forEach((dialog) => {
 
 // ---- 物語 ----
 
-function showStory(): void {
+/** いま選んでいる編（話の選択画面） */
+let selectedArc: Arc = ARCS[0];
+/** 話の選択画面の上に、いちど出すお知らせ（「秀吉編が開きました」など） */
+let storyNotice = '';
+
+const arcUnlocked = (arc: Arc, cleared: number): boolean => DEBUG || arc.first <= cleared + 1;
+
+/** 話の選択画面。arc を渡すと、その編を開く。省略すると、まだクリアしていない最初の編を開く。 */
+function showStory(arc?: Arc): void {
   const cleared = clearedCount();
+  selectedArc = arc ?? ARCS.find((a) => cleared < a.last) ?? ARCS[ARCS.length - 1];
+
+  const tabs = byId('arc-tabs');
+  tabs.replaceChildren();
+  for (const a of ARCS) {
+    const open = arcUnlocked(a, cleared);
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'arc-tab';
+    tab.disabled = !open;
+    tab.setAttribute('aria-pressed', String(a.id === selectedArc.id));
+    tab.textContent = open ? a.name : `🔒 ${a.name}`;
+    if (!open) tab.setAttribute('aria-label', `${a.name} (前の編をクリアすると開きます)`);
+    tab.addEventListener('click', () => {
+      playSound('tap');
+      showStory(a);
+    });
+    tabs.append(tab);
+  }
+
+  const done = CHAPTERS.filter((c) => c.arc === selectedArc.id && c.id <= cleared).length;
+  const hero = characterOf(selectedArc.hero);
+  byId('arc-summary').textContent = `${hero?.name ?? ''}(${selectedArc.period})。${selectedArc.summary} ${done}/${selectedArc.last - selectedArc.first + 1} 話クリア`;
+  const notice = byId('story-notice');
+  notice.textContent = storyNotice;
+  notice.hidden = storyNotice === '';
+  storyNotice = '';
+
   const list = byId('chapter-list');
   list.replaceChildren();
-  for (const chapter of CHAPTERS) {
+  for (const chapter of CHAPTERS.filter((c) => c.arc === selectedArc.id)) {
     const unlocked = DEBUG || chapter.id <= cleared + 1;
     const li = document.createElement('li');
     const button = document.createElement('button');
@@ -114,7 +148,7 @@ function showStory(): void {
     button.disabled = !unlocked;
     const opponent = characterOf(chapter.opponent);
     const parts: [string, string][] = [
-      ['ch-num', chapterLabel(chapter.id)],
+      ['ch-num', `${chapterLabel(chapter.no)} ・ ${unlocked ? chapter.year : '？？？？年'}`],
       ['ch-title', unlocked ? chapter.title : '？？？'],
       ['ch-meta', unlocked ? `${opponent?.name ?? ''} ・ ${chapter.placeName}` : 'まだ開いていません'],
       ['ch-state', chapter.id <= cleared ? '済' : unlocked ? '' : '🔒'],
@@ -125,7 +159,7 @@ function showStory(): void {
       span.textContent = text;
       button.append(span);
     }
-    if (chapter.id <= cleared) button.setAttribute('aria-label', `${chapterLabel(chapter.id)} ${chapter.title} クリア済み`);
+    if (chapter.id <= cleared) button.setAttribute('aria-label', `${chapterLabel(chapter.no)} ${chapter.title} クリア済み`);
     button.addEventListener('click', () => void playChapter(chapter));
     li.append(button);
     list.append(li);
@@ -171,18 +205,20 @@ function launch(config: Launch, resume?: Game): void {
   const chapter = config.chapter > 0 ? CHAPTERS[config.chapter - 1] : null;
   const opponentName = chapter ? (characterOf(chapter.opponent)?.name ?? 'CPU') : 'CPU';
   const title = chapter
-    ? `${chapterLabel(chapter.id)} ${chapter.title}`
+    ? `${arcOf(chapter).short}${chapterLabel(chapter.no)}`
     : config.mode === 'two'
       ? 'ふたりで対局'
       : `CPU対局(${FREE_LEVELS[config.level] ?? config.level})`;
   show('game');
-  setTrack(chapter && chapter.id >= BOSS_FROM ? 'boss' : 'game');
+  setTrack(chapter?.boss ? 'boss' : 'game');
   startPlay({
     mode: config.mode,
     level: config.level,
     human: config.human,
     title,
     opponentName,
+    talk: chapter?.talk,
+    opponentVoice: chapter ? characterOf(chapter.opponent)?.voice : undefined,
     moves: resume?.moves,
     onMove: (game) => persist(config, game),
     onEnd: (game) => void onGameEnd(config, chapter, game),
@@ -209,7 +245,7 @@ async function onGameEnd(config: Launch, chapter: Chapter | null, game: Game): P
   let back = 'メニューへ';
   if (chapter) {
     back = '話の選択へ';
-    if (won) again = 'つづきを見る';
+    if (won) again = 'つづきを見る(歴史メモ)';
     else {
       again = 'もう一度';
       const q = chapter.loseQuote;
@@ -234,18 +270,22 @@ async function onGameEnd(config: Launch, chapter: Chapter | null, game: Game): P
 
   if (choice === 'close') return; // 盤を見返す
   if (chapter && won) {
+    const arc = arcOf(chapter);
     if (choice === 'again') {
       show('scene');
-      await runScene(chapter.win, chapter.place, chapter.placeName);
-      if (chapter.id === CHAPTERS.length) {
-        await runScene(ENDING, 'castle', '葦原城');
-      }
+      const memo = chapter.memo.map((text) => ({ who: 'memo', text }));
+      await runScene([...chapter.win, ...memo], chapter.place, chapter.placeName);
+      if (chapter.id === arc.last) await runScene(arc.epilogue, 'castle', arc.name);
     }
-    showStory();
+    // 編をクリアしたら、次の編が開く
+    const next = chapter.id === arc.last ? ARCS[ARCS.indexOf(arc) + 1] : undefined;
+    if (next) storyNotice = `${arc.name}をクリア! ${next.name}が開きました。`;
+    else if (chapter.id === CHAPTERS.length) storyNotice = '全 24 話クリア! 戦国三英雄の物語を、最後まで見とどけました。';
+    showStory(next ?? arc);
     return;
   }
   if (choice === 'again') void launch(config);
-  else if (chapter) showStory();
+  else if (chapter) showStory(arcOf(chapter));
   else showTitle();
 }
 

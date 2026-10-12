@@ -31,8 +31,13 @@ export function requestPersist(): void {
 
 /** 保存データの形が変わったときの移行処理。from → from+1 の変換を、ここに足していく。 */
 function migrate(from: number): void {
-  // 例: if (from < 2) { /* 版 1 → 2 の変換 */ }
-  void from;
+  // 版 1 → 2: 物語を「葦原の乱」から「信長・秀吉・家康編」に作り替えた。話の番号の意味が変わったので、
+  // 物語の進み具合と、物語の途中の対局は引き継がない（自由対局の途中の対局と、設定は残す）。
+  if (from < 2) {
+    save('cleared', 0);
+    const game = load<{ chapter?: number } | null>('game', null);
+    if (game && typeof game === 'object' && Number(game.chapter) > 0) save('game', null);
+  }
 }
 
 /** 起動時に一度呼ぶ。保存されている形の版が古ければ、移行してから版番号を書き直す。 */
@@ -65,5 +70,7 @@ export function importBackup(text: string): number {
   const data = parseBackup(text);
   const keys = Object.keys(data).filter((k) => k.startsWith(`${PREFIX}-`));
   for (const key of keys) localStorage.setItem(key, data[key]);
+  // 古い版のファイルを読み込んだときは、保存の形を今の版にそろえる
+  migrateStorage();
   return keys.length;
 }

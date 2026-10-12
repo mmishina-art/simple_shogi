@@ -3,9 +3,12 @@
 import { chooseMove } from './ai';
 import { type Game, type Result, describeResult, newGame, gameFromMoves, playMove, pieceName, resign, squareName, takeBack, fileOf } from './game';
 import { setTrack } from './music';
+import { voiceFrequency } from './music-data';
 import { pieceElement } from './pieces';
 import { BISHOP, GOLD, KNIGHT, LANCE, PAWN, ROOK, SILVER, SQUARES, type Move, type Side, cellKind, cellSide, findKing, isInCheck, legalMoves } from './shogi';
-import { playSound } from './sound';
+import { playSound, playVoice } from './sound';
+import type { Talk } from './story-types';
+import { MIN_GAP, chooseTalk } from './talk';
 import { askDialog, byId } from './ui';
 
 export interface PlayConfig {
@@ -17,6 +20,10 @@ export interface PlayConfig {
   title: string;
   /** CPU 対戦での相手の名前 */
   opponentName: string;
+  /** 対戦相手が、対局中に話すセリフ（物語の対局だけ） */
+  talk?: Talk;
+  /** 対戦相手のしゃべり声の高さ(Hz) */
+  opponentVoice?: number;
   /** 途中から再開するときの指し手 */
   moves?: Move[];
   onMove(game: Game): void;
@@ -34,6 +41,9 @@ let game: Game = newGame();
 let legal: Move[] = [];
 let selection: Selection = null;
 let thinking = false;
+/** 対戦相手が最後に話した手数 */
+let lastTalkPly = 0;
+let speechTimer = 0;
 /** 古い CPU の思考結果や遅延処理を無効にするための番号 */
 let token = 0;
 
@@ -82,10 +92,59 @@ export function startPlay(config: PlayConfig): void {
   cfg = config;
   game = (config.moves && gameFromMoves(config.moves)) || newGame();
   selection = null;
+  lastTalkPly = game.moves.length - MIN_GAP; // 最初の反応は、すぐに話せる
   byId('game-title').textContent = config.title;
   buildLabels();
+  clearSpeech();
+  byId('opp-speech').hidden = !config.talk;
   refresh();
+  // 新しい対局のはじめに、対戦相手がひとこと話す
+  if (config.talk && game.moves.length === 0) {
+    const myToken = token;
+    window.setTimeout(() => {
+      if (myToken === token && config.talk) speak(config.talk.start);
+    }, 500);
+  }
   maybeCpu();
+}
+
+// ---- 対戦相手のセリフ ----
+
+function clearSpeech(): void {
+  window.clearTimeout(speechTimer);
+  const el = byId('opp-speech');
+  el.textContent = '';
+  el.classList.add('idle');
+}
+
+/** セリフを表示して、しゃべり声を鳴らす。しばらくしたら消える。 */
+function speak(text: string): void {
+  const el = byId('opp-speech');
+  const name = document.createElement('span');
+  name.className = 'who';
+  name.textContent = cfg.opponentName;
+  el.replaceChildren(name, document.createTextNode(`「${text}」`));
+  el.classList.remove('idle');
+  window.clearTimeout(speechTimer);
+  speechTimer = window.setTimeout(() => el.classList.add('idle'), 6500);
+  // 最初の数文字だけ、「ぽ・ぽ・ぽ」としゃべり声を鳴らす
+  const base = cfg.opponentVoice ?? 150;
+  let delay = 0;
+  for (const ch of [...text].slice(0, 8)) {
+    const hz = voiceFrequency(base, ch);
+    if (hz === null) continue;
+    window.setTimeout(() => playVoice(hz), delay);
+    delay += 90;
+  }
+}
+
+function react(mover: Side, captured: boolean, check: boolean): void {
+  if (!cfg.talk || cfg.mode !== 'cpu') return;
+  const ply = game.moves.length;
+  const line = chooseTalk(cfg.talk, { byOpponent: mover !== cfg.human, capture: captured, check, ply }, lastTalkPly);
+  if (line === null) return;
+  lastTalkPly = ply;
+  speak(line);
 }
 
 function buildLabels(): void {
@@ -247,6 +306,7 @@ async function choose(candidates: Move[]): Promise<void> {
 
 function commit(move: Move): void {
   const captured = move.from >= 0 && game.pos.board[move.to] !== 0;
+  const mover = game.pos.turn;
   game = playMove(game, move);
   selection = null;
   thinking = false;
@@ -256,7 +316,10 @@ function commit(move: Move): void {
   refresh();
   cfg.onMove(game);
   if (game.result) finish(game.result);
-  else maybeCpu();
+  else {
+    react(mover, captured, last);
+    maybeCpu();
+  }
 }
 
 function finish(result: Result): void {
@@ -312,6 +375,8 @@ function undo(): void {
   token++;
   game = takeBack(game, undoCount());
   selection = null;
+  lastTalkPly = Math.min(lastTalkPly, game.moves.length);
+  clearSpeech();
   playSound('tap');
   refresh();
   cfg.onMove(game);
