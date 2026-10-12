@@ -1,27 +1,123 @@
 // アイコンを生成する（標準ライブラリのみ）: npm run icons
-// 色・形はここを書き換えて再実行する。PNG を直接編集しない。
-// maskable は端末が外側を円や角丸で切り抜くため、図柄を中央 60% に収める。
+// 絵は、下の「図形のリスト」だけで決まる。同じリストから、SVG と PNG の両方を作る（PNG を直接編集しない）。
+// 絵: 夕暮れの空にうかぶ天守(城)と、青海波(せいがいは)の波もよう。
+// maskable は端末が外側を円や角丸で切り抜くため、大事な図柄(城と月)を中央 60% に収める。
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-// 墨色の地に、金色の将棋の駒（五角形）と朱色の日の丸
-const BG = [0x16, 0x11, 0x0d];
-const FG = [0xd2, 0xac, 0x62];
-const SUN = [0xa8, 0x2f, 0x24];
-// 駒の形（中心が原点、一辺を 1 としたときの座標。y は下向き）
-const PIECE = [[0, -0.5], [0.36, -0.2], [0.46, 0.5], [-0.46, 0.5], [-0.36, -0.2]];
-const SUN_AT = { x: 0, y: 0.14, r: 0.17 };
+const SIZE = 512;
 
-function inPolygon(px, py, poly) {
+// ---- 色（絵だけで使う。アプリの画面の色は src/style.css）----
+const C = {
+  skyTop: '#1f2f5c', // 藍
+  skyMid: '#4a5f94',
+  skyLow: '#e8b97a', // 夕焼けの地平線
+  moon: '#f7f0d8',
+  star: '#f4ecd0',
+  wall: '#f3ead2', // 白い壁
+  roof: '#141f45',
+  stone: '#1c2750',
+  window: '#f5c35f', // あかりのついた窓
+  gold: '#e7b94c',
+  waveFill: '#1d3a73',
+  waveLine: '#6a8cc6',
+};
+
+// ---- 図形のリスト（奥から手前の順）----
+const shapes = [];
+const rect = (x, y, w, h, fill) => shapes.push({ t: 'poly', pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], fill });
+const poly = (pts, fill) => shapes.push({ t: 'poly', pts, fill });
+const circle = (cx, cy, r, fill, stroke, sw = 0) => shapes.push({ t: 'circle', cx, cy, r, fill, stroke, sw });
+
+// 空: 上が藍、地平線に向かって夕焼け（グラデーションは別扱い）
+const SKY_STOPS = [[0, C.skyTop], [0.38, C.skyMid], [0.66, C.skyLow], [1, C.skyLow]];
+
+// 月と星
+circle(352, 140, 25, C.moon);
+for (const [x, y, r] of [[96, 96, 2.6], [150, 150, 2], [212, 78, 2.2], [78, 196, 2], [428, 214, 2.2], [300, 70, 1.8], [408, 92, 1.8]]) circle(x, y, r, C.star);
+
+// 天守（石垣 → 一重目 → 二重目 → 三重目）
+poly([[140, 400], [372, 400], [354, 332], [158, 332]], C.stone); // 石垣
+rect(180, 300, 152, 34, C.wall); // 一重目の壁
+rect(204, 250, 104, 30, C.wall); // 二重目の壁
+rect(226, 204, 60, 22, C.wall); // 三重目の壁
+poly([[130, 308], [382, 308], [348, 276], [164, 276]], C.roof); // 一重目の屋根
+poly([[176, 254], [336, 254], [312, 224], [200, 224]], C.roof); // 二重目の屋根
+poly([[204, 208], [308, 208], [286, 178], [226, 178]], C.roof); // 三重目の屋根
+poly([[230, 178], [256, 150], [282, 178]], C.roof); // 最上の屋根のむね
+poly([[222, 178], [206, 160], [210, 180]], C.gold); // しゃちほこ(左)
+poly([[290, 178], [306, 160], [302, 180]], C.gold); // しゃちほこ(右)
+for (const x of [190, 230, 282, 322]) rect(x - 7, 316, 14, 14, C.window); // 一重目の窓
+for (const x of [232, 280]) rect(x - 6, 260, 12, 12, C.window); // 二重目の窓
+rect(250, 210, 12, 12, C.window); // 三重目の窓
+
+// 青海波: 同じ大きさの円が、半分ずつずれて重なる。上の段から先に描き、手前の段が上に重なる
+const R = 36;
+for (let row = 0; row < 10; row++) {
+  const y = 404 + row * (R / 2);
+  for (let x = -R + (row % 2) * R; x < SIZE + 2 * R; x += 2 * R) {
+    circle(x, y, R, C.waveFill, C.waveLine, 3);
+    circle(x, y, R * 0.72, undefined, C.waveLine, 3);
+    circle(x, y, R * 0.44, undefined, C.waveLine, 3);
+  }
+}
+
+// ---- 描画 ----
+const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+
+function skyAt(v) {
+  const t = v / SIZE;
+  for (let i = 1; i < SKY_STOPS.length; i++) {
+    const [t1, c1] = SKY_STOPS[i];
+    const [t0, c0] = SKY_STOPS[i - 1];
+    if (t <= t1) return lerp(hex(c0), hex(c1), (t - t0) / (t1 - t0 || 1));
+  }
+  return hex(SKY_STOPS[SKY_STOPS.length - 1][1]);
+}
+
+function inPoly(x, y, pts) {
   let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, yi] = poly[i];
-    const [xj, yj] = poly[j];
-    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i];
+    const [xj, yj] = pts[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
 }
 
+// 図形ごとの外接の箱（見るべき図形を絞って、速くする）
+for (const s of shapes) {
+  if (s.t === 'poly') {
+    const xs = s.pts.map((p) => p[0]);
+    const ys = s.pts.map((p) => p[1]);
+    s.box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    s.rgb = hex(s.fill);
+  } else {
+    const e = s.r + s.sw / 2;
+    s.box = [s.cx - e, s.cy - e, s.cx + e, s.cy + e];
+    s.fillRgb = s.fill && hex(s.fill);
+    s.strokeRgb = s.stroke && hex(s.stroke);
+  }
+}
+
+/** 絵の中の点 (x, y) の色 */
+function colorAt(x, y) {
+  let rgb = skyAt(y);
+  for (const s of shapes) {
+    if (x < s.box[0] || x > s.box[2] || y < s.box[1] || y > s.box[3]) continue;
+    if (s.t === 'poly') {
+      if (inPoly(x, y, s.pts)) rgb = s.rgb;
+    } else {
+      const d = Math.hypot(x - s.cx, y - s.cy);
+      if (s.fillRgb && d <= s.r) rgb = s.fillRgb;
+      if (s.strokeRgb && Math.abs(d - s.r) <= s.sw / 2) rgb = s.strokeRgb;
+    }
+  }
+  return rgb;
+}
+
+// ---- PNG ----
 function crc32(buf) {
   let c;
   const table = Array.from({ length: 256 }, (_, n) => {
@@ -43,31 +139,35 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
-// size: 一辺(px) / figure: 図柄の大きさ(一辺に対する割合) / fullBleed: 背景を全面に塗る
-function png(size, figure, fullBleed) {
+const SS = 3; // 1 ピクセルを 3×3 に分けて平均する（ギザギザをなめらかにする）
+
+// size: 一辺(px) / fullBleed: 背景を全面に塗る（false のときは角丸で、外側は透明）
+function png(size, fullBleed) {
   const raw = Buffer.alloc(size * (size * 4 + 1));
-  const c = size / 2;
-  const unit = size * figure;
-  const radius = size * 0.22;
-  for (let y = 0; y < size; y++) {
-    const row = y * (size * 4 + 1);
+  const k = SIZE / size;
+  const radius = SIZE * 0.22;
+  const c = SIZE / 2;
+  for (let py = 0; py < size; py++) {
+    const row = py * (size * 4 + 1);
     raw[row] = 0;
-    for (let x = 0; x < size; x++) {
-      // 角丸の背景（fullBleed のときは全面）
-      const dx = Math.max(Math.abs(x - c) - (c - radius), 0);
-      const dy = Math.max(Math.abs(y - c) - (c - radius), 0);
-      const inBg = fullBleed || dx * dx + dy * dy <= radius * radius;
-      // 図柄: 中央の駒と、その中の日の丸
-      const ux = (x - c) / unit;
-      const uy = (y - c) / unit;
-      const inFg = inPolygon(ux, uy, PIECE);
-      const inSun = (ux - SUN_AT.x) ** 2 + (uy - SUN_AT.y) ** 2 <= SUN_AT.r ** 2;
-      const px = inSun ? SUN : inFg ? FG : BG;
-      const o = row + 1 + x * 4;
-      raw[o] = px[0];
-      raw[o + 1] = px[1];
-      raw[o + 2] = px[2];
-      raw[o + 3] = inBg ? 255 : 0;
+    for (let px = 0; px < size; px++) {
+      let r = 0, g = 0, b = 0, a = 0;
+      for (let sy = 0; sy < SS; sy++) {
+        for (let sx = 0; sx < SS; sx++) {
+          const x = (px + (sx + 0.5) / SS) * k;
+          const y = (py + (sy + 0.5) / SS) * k;
+          const dx = Math.max(Math.abs(x - c) - (c - radius), 0);
+          const dy = Math.max(Math.abs(y - c) - (c - radius), 0);
+          if (!fullBleed && dx * dx + dy * dy > radius * radius) continue;
+          const [cr, cg, cb] = colorAt(x, y);
+          r += cr; g += cg; b += cb; a++;
+        }
+      }
+      const o = row + 1 + px * 4;
+      raw[o] = a ? Math.round(r / a) : 0;
+      raw[o + 1] = a ? Math.round(g / a) : 0;
+      raw[o + 2] = a ? Math.round(b / a) : 0;
+      raw[o + 3] = Math.round((a / (SS * SS)) * 255);
     }
   }
   const ihdr = Buffer.alloc(13);
@@ -83,22 +183,34 @@ function png(size, figure, fullBleed) {
   ]);
 }
 
+// ---- SVG（同じ図形のリストから作る）----
+const f = (n) => Number(n.toFixed(1));
+function svg() {
+  const stops = SKY_STOPS.map(([t, col]) => `<stop offset="${t}" stop-color="${col}"/>`).join('');
+  const body = shapes
+    .map((s) => {
+      if (s.t === 'poly') return `<polygon points="${s.pts.map((p) => p.join(',')).join(' ')}" fill="${s.fill}"/>`;
+      const fill = s.fill ? ` fill="${s.fill}"` : ' fill="none"';
+      const stroke = s.stroke && s.sw ? ` stroke="${s.stroke}" stroke-width="${s.sw}"` : '';
+      return `<circle cx="${f(s.cx)}" cy="${f(s.cy)}" r="${f(s.r)}"${fill}${stroke}/>`;
+    })
+    .join('');
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}">` +
+    `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient><clipPath id="round"><rect width="${SIZE}" height="${SIZE}" rx="112"/></clipPath></defs>` +
+    `<g clip-path="url(#round)"><rect width="${SIZE}" height="${SIZE}" fill="url(#sky)"/>${body}</g></svg>\n`
+  );
+}
+
 const out = new URL('../public/icons/', import.meta.url);
 mkdirSync(out, { recursive: true });
 const files = {
-  'icon-192.png': png(192, 0.7, false),
-  'icon-512.png': png(512, 0.7, false),
-  'icon-maskable-512.png': png(512, 0.6, true),
+  'icon-192.png': png(192, false),
+  'icon-512.png': png(512, false),
+  'icon-maskable-512.png': png(512, true),
   // apple-touch-icon は iOS が角を丸めるので全面塗りにする
-  'apple-touch-icon.png': png(180, 0.7, true),
+  'apple-touch-icon.png': png(180, true),
 };
 for (const [name, data] of Object.entries(files)) writeFileSync(new URL(name, out), data);
-
-const u = 512 * 0.7;
-const points = PIECE.map(([x, y]) => `${(256 + x * u).toFixed(1)},${(256 + y * u).toFixed(1)}`).join(' ');
-const hex = (rgb) => `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-writeFileSync(
-  new URL('icon.svg', out),
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${hex(BG)}"/><polygon points="${points}" fill="${hex(FG)}"/><circle cx="${256 + SUN_AT.x * u}" cy="${(256 + SUN_AT.y * u).toFixed(1)}" r="${(SUN_AT.r * u).toFixed(1)}" fill="${hex(SUN)}"/></svg>\n`,
-);
+writeFileSync(new URL('icon.svg', out), svg());
 console.log('icons generated:', [...Object.keys(files), 'icon.svg'].join(', '));
