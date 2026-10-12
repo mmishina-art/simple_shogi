@@ -577,22 +577,32 @@ test('おかしいバックアップファイルは、理由を表示して読�
   await expect(page.locator('#backup-message')).toContainText('このアプリのバックアップではありません');
 });
 
-test('起動できないときは「なおす」ボタンが出て、押すと起動できる（記録は消えない）', async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { __bootWaitMs: number }).__bootWaitMs = 500;
-    // 1回目の自動修復は済んだことにして、ボタンが出る側の動きを確かめる
-    sessionStorage.setItem('simple-shogi:repaired-at', String(Date.now()));
-    if (!localStorage.getItem('simple-shogi-cleared')) localStorage.setItem('simple-shogi-cleared', '4');
-  });
-  // メインのスクリプトが読み込めない状況を作る
-  await page.route('**/assets/*.js', (route) => route.abort());
-  await page.goto('/');
-  await expect(page.locator('#boot-error')).toBeVisible();
+// 読み込みの失敗を確実に作るため、このテストだけ Service Worker を無効にする
+test.describe('起動失敗の復旧', () => {
+  test.use({ serviceWorkers: 'block' });
 
-  await page.unroute('**/assets/*.js');
-  await page.getByRole('button', { name: 'なおす' }).click();
-  await expect(page.getByRole('button', { name: /物語/ })).toBeVisible();
-  await expect(page.locator('#boot-error')).toBeHidden();
-  await page.getByRole('button', { name: /物語/ }).click();
-  await expect(page.locator('.chapter:enabled')).toHaveCount(5);
+  test('起動できないときは「なおす」ボタンが出て、押すと起動できる（記録と、ほかのアプリのキャッシュは消えない）', async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __bootWaitMs: number }).__bootWaitMs = 500;
+      // 1回目の自動修復は済んだことにして、ボタンが出る側の動きを確かめる
+      sessionStorage.setItem('simple-shogi:repaired-at', String(Date.now()));
+      if (!localStorage.getItem('simple-shogi-cleared')) localStorage.setItem('simple-shogi-cleared', '4');
+    });
+    // 同じサイトにある、ほかのアプリのキャッシュ（なおすときに消えてはいけない）を用意する
+    await page.goto('/');
+    await page.evaluate(async () => { await caches.open('other-app-v1'); });
+    // メインのスクリプトが読み込めない状況を作る
+    await page.route('**/assets/*.js', (route) => route.abort());
+    await page.goto('/');
+    await expect(page.locator('#boot-error')).toBeVisible();
+
+    await page.unroute('**/assets/*.js');
+    await page.getByRole('button', { name: 'なおす' }).click();
+    await expect(page.getByRole('button', { name: /物語/ })).toBeVisible();
+    await expect(page.locator('#boot-error')).toBeHidden();
+    await page.getByRole('button', { name: /物語/ }).click();
+    await expect(page.locator('.chapter:enabled')).toHaveCount(5);
+    // このアプリのキャッシュだけが作り直され、ほかのアプリのキャッシュは残っている
+    expect(await page.evaluate(() => caches.has('other-app-v1'))).toBe(true);
+  });
 });

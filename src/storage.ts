@@ -3,7 +3,9 @@
 
 import { SCHEMA_VERSION, createBackup, parseBackup } from './backup';
 
-const PREFIX = 'simple-shogi';
+// 保存データのキーの接頭辞。GitHub Pages では、すべてのアプリが同じサイトに載り、localStorage を共有するので、
+// アプリごとに別の名前にする（package.json の name。いまは simple-shogi。変えると、記録が引き継がれない）。
+const PREFIX = __APP_ID__;
 
 export function load<T>(key: string, fallback: T): T {
   try {
