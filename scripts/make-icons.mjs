@@ -1,7 +1,7 @@
 // アイコンを生成する（標準ライブラリのみ）: npm run icons
 // 絵は、下の「図形のリスト」だけで決まる。同じリストから、SVG と PNG の両方を作る（PNG を直接編集しない）。
-// 絵: 夕暮れの空にうかぶ天守(城)と、青海波(せいがいは)の波もよう。
-// maskable は端末が外側を円や角丸で切り抜くため、大事な図柄(城と月)を中央 60% に収める。
+// 絵: 藍色の海(青海波)の上に、大きな将棋の駒。駒の面に、夕暮れの天守(城)と月を描く。
+// maskable は端末が外側を円や角丸で切り抜くため、大事な図柄(駒)を、中央の円(直径の 80%)に収める。
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
@@ -9,12 +9,19 @@ const SIZE = 512;
 
 // ---- 色（絵だけで使う。アプリの画面の色は src/style.css）----
 const C = {
-  skyTop: '#1f2f5c', // 藍
+  seaTop: '#1f3a74', // 藍色の海
+  seaBottom: '#3b66aa',
+  seaWaveFill: '#284a86',
+  seaWaveLine: '#4a76b8',
+  shadow: '#13264d',
+  wood: '#f2dca6', // 駒の木の色
+  woodEdge: '#5b3715',
+  skyTop: '#26376a', // 駒の面の、夕暮れの空
   skyMid: '#4a5f94',
-  skyLow: '#e8b97a', // 夕焼けの地平線
+  skyLow: '#e8b97a',
   moon: '#f7f0d8',
   star: '#f4ecd0',
-  wall: '#f3ead2', // 白い壁
+  wall: '#f6eed6', // 白い壁
   roof: '#141f45',
   stone: '#1c2750',
   window: '#f5c35f', // あかりのついた窓
@@ -25,55 +32,84 @@ const C = {
 
 // ---- 図形のリスト（奥から手前の順）----
 const shapes = [];
-const rect = (x, y, w, h, fill) => shapes.push({ t: 'poly', pts: [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], fill });
-const poly = (pts, fill) => shapes.push({ t: 'poly', pts, fill });
-const circle = (cx, cy, r, fill, stroke, sw = 0) => shapes.push({ t: 'circle', cx, cy, r, fill, stroke, sw });
+const poly = (pts, fill, clip) => shapes.push({ t: 'poly', pts, fill, clip });
+const rect = (x, y, w, h, fill, clip) => poly([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], fill, clip);
+const circle = (cx, cy, r, fill, stroke, sw = 0, clip) => shapes.push({ t: 'circle', cx, cy, r, fill, stroke, sw, clip });
 
-// 空: 上が藍、地平線に向かって夕焼け（グラデーションは別扱い）
-const SKY_STOPS = [[0, C.skyTop], [0.38, C.skyMid], [0.66, C.skyLow], [1, C.skyLow]];
+/** 縦のグラデーション（fill に渡す）。y0 〜 y1 の間で、色が変わる */
+const grad = (id, y0, y1, stops) => ({ id, y0, y1, stops });
 
-// 月と星
-circle(352, 140, 25, C.moon);
-for (const [x, y, r] of [[96, 96, 2.6], [150, 150, 2], [212, 78, 2.2], [78, 196, 2], [428, 214, 2.2], [300, 70, 1.8], [408, 92, 1.8]]) circle(x, y, r, C.star);
-
-// 天守（石垣 → 一重目 → 二重目 → 三重目）
-poly([[140, 400], [372, 400], [354, 332], [158, 332]], C.stone); // 石垣
-rect(180, 300, 152, 34, C.wall); // 一重目の壁
-rect(204, 250, 104, 30, C.wall); // 二重目の壁
-rect(226, 204, 60, 22, C.wall); // 三重目の壁
-poly([[130, 308], [382, 308], [348, 276], [164, 276]], C.roof); // 一重目の屋根
-poly([[176, 254], [336, 254], [312, 224], [200, 224]], C.roof); // 二重目の屋根
-poly([[204, 208], [308, 208], [286, 178], [226, 178]], C.roof); // 三重目の屋根
-poly([[230, 178], [256, 150], [282, 178]], C.roof); // 最上の屋根のむね
-poly([[222, 178], [206, 160], [210, 180]], C.gold); // しゃちほこ(左)
-poly([[290, 178], [306, 160], [302, 180]], C.gold); // しゃちほこ(右)
-for (const x of [190, 230, 282, 322]) rect(x - 7, 316, 14, 14, C.window); // 一重目の窓
-for (const x of [232, 280]) rect(x - 6, 260, 12, 12, C.window); // 二重目の窓
-rect(250, 210, 12, 12, C.window); // 三重目の窓
-
-// 青海波: 同じ大きさの円が、半分ずつずれて重なる。上の段から先に描き、手前の段が上に重なる
-const R = 36;
-for (let row = 0; row < 10; row++) {
-  const y = 404 + row * (R / 2);
-  for (let x = -R + (row % 2) * R; x < SIZE + 2 * R; x += 2 * R) {
-    circle(x, y, R, C.waveFill, C.waveLine, 3);
-    circle(x, y, R * 0.72, undefined, C.waveLine, 3);
-    circle(x, y, R * 0.44, undefined, C.waveLine, 3);
+// 背景: 藍色の海。下のほうに、うすい青海波
+const SEA = grad('sea', 0, SIZE, [[0, C.seaTop], [1, C.seaBottom]]);
+rect(0, 0, SIZE, SIZE, SEA);
+const SR = 40;
+for (let row = 0; row < 8; row++) {
+  const y = 330 + row * (SR / 2);
+  for (let x = -SR + (row % 2) * SR; x < SIZE + 2 * SR; x += 2 * SR) {
+    circle(x, y, SR, C.seaWaveFill, C.seaWaveLine, 3);
+    circle(x, y, SR * 0.7, undefined, C.seaWaveLine, 3);
+    circle(x, y, SR * 0.4, undefined, C.seaWaveLine, 3);
   }
 }
 
+// 将棋の駒（五角形）。中心が原点、高さを 1 としたときの形
+const U = 290;
+const CY = 262;
+const piecePts = (scale, dx = 0, dy = 0) =>
+  [[0, -0.5], [0.36, -0.2], [0.46, 0.5], [-0.46, 0.5], [-0.36, -0.2]].map(([x, y]) => [SIZE / 2 + x * U * scale + dx, CY + y * U * scale + dy]);
+poly(piecePts(1, 8, 10), C.shadow); // かげ
+shapes.push({ t: 'poly', pts: piecePts(1), fill: C.wood, stroke: C.woodEdge, sw: 6 }); // 駒の木の面
+const INSET = piecePts(0.82); // 駒の面の、絵をはめこむ窓
+const SKY = grad('sky', 143, 381, [[0, C.skyTop], [0.4, C.skyMid], [0.8, C.skyLow], [1, C.skyLow]]);
+poly(INSET, SKY, INSET);
+
+// 窓の中の絵: 天守と月、足もとの青海波（元の 512 の絵を 0.7 倍にして、窓の中に収める）
+const X = (x) => 256 + (x - 256) * 0.7;
+const Y = (y) => 186 + (y - 150) * 0.7;
+const P = (pts) => pts.map(([x, y]) => [X(x), Y(y)]);
+const polyS = (pts, fill) => poly(P(pts), fill, INSET);
+const rectS = (x, y, w, h, fill) => polyS([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], fill);
+
+circle(256, 178, 14, C.moon, undefined, 0, INSET); // 天守の上に、まるい月
+for (const [x, y, r] of [[226, 196, 1.6], [288, 200, 1.6], [240, 168, 1.4]]) circle(x, y, r, C.star, undefined, 0, INSET);
+
+polyS([[140, 400], [372, 400], [354, 332], [158, 332]], C.stone); // 石垣
+rectS(180, 300, 152, 34, C.wall); // 一重目の壁
+rectS(204, 250, 104, 30, C.wall); // 二重目の壁
+rectS(226, 204, 60, 22, C.wall); // 三重目の壁
+polyS([[130, 308], [382, 308], [348, 276], [164, 276]], C.roof); // 一重目の屋根
+polyS([[176, 254], [336, 254], [312, 224], [200, 224]], C.roof); // 二重目の屋根
+polyS([[204, 208], [308, 208], [286, 178], [226, 178]], C.roof); // 三重目の屋根
+polyS([[230, 178], [256, 150], [282, 178]], C.roof); // 最上の屋根のむね
+polyS([[222, 178], [206, 160], [210, 180]], C.gold); // しゃちほこ(左)
+polyS([[290, 178], [306, 160], [302, 180]], C.gold); // しゃちほこ(右)
+for (const x of [190, 230, 282, 322]) rectS(x - 7, 316, 14, 14, C.window);
+for (const x of [232, 280]) rectS(x - 6, 260, 12, 12, C.window);
+rectS(250, 210, 12, 12, C.window);
+
+const WR = 17;
+for (let row = 0; row < 5; row++) {
+  const y = 362 + row * (WR / 2);
+  for (let x = 130 + (row % 2) * WR; x < 390; x += 2 * WR) {
+    circle(x, y, WR, C.waveFill, C.waveLine, 2, INSET);
+    circle(x, y, WR * 0.7, undefined, C.waveLine, 2, INSET);
+  }
+}
+// 窓のわく（線だけ）
+shapes.push({ t: 'poly', pts: INSET, fill: undefined, stroke: C.woodEdge, sw: 3 });
+
 // ---- 描画 ----
-const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
 const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 
-function skyAt(v) {
-  const t = v / SIZE;
-  for (let i = 1; i < SKY_STOPS.length; i++) {
-    const [t1, c1] = SKY_STOPS[i];
-    const [t0, c0] = SKY_STOPS[i - 1];
+function gradAt(g, y) {
+  const t = Math.min(Math.max((y - g.y0) / (g.y1 - g.y0), 0), 1);
+  for (let i = 1; i < g.stops.length; i++) {
+    const [t1, c1] = g.stops[i];
+    const [t0, c0] = g.stops[i - 1];
     if (t <= t1) return lerp(hex(c0), hex(c1), (t - t0) / (t1 - t0 || 1));
   }
-  return hex(SKY_STOPS[SKY_STOPS.length - 1][1]);
+  return hex(g.stops[g.stops.length - 1][1]);
 }
 
 function inPoly(x, y, pts) {
@@ -86,31 +122,46 @@ function inPoly(x, y, pts) {
   return inside;
 }
 
+/** 点 (x, y) と、線分 a-b の距離 */
+function distToSegment(x, y, [ax, ay], [bx, by]) {
+  const dx = bx - ax, dy = by - ay;
+  const t = Math.min(Math.max(((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1), 0), 1);
+  return Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
+}
+
 // 図形ごとの外接の箱（見るべき図形を絞って、速くする）
 for (const s of shapes) {
+  const pad = (s.sw ?? 0) / 2 + 1;
   if (s.t === 'poly') {
     const xs = s.pts.map((p) => p[0]);
     const ys = s.pts.map((p) => p[1]);
-    s.box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
-    s.rgb = hex(s.fill);
+    s.box = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad];
   } else {
-    const e = s.r + s.sw / 2;
+    const e = s.r + pad;
     s.box = [s.cx - e, s.cy - e, s.cx + e, s.cy + e];
-    s.fillRgb = s.fill && hex(s.fill);
-    s.strokeRgb = s.stroke && hex(s.stroke);
   }
+  s.fillRgb = typeof s.fill === 'string' ? hex(s.fill) : null;
+  s.strokeRgb = s.stroke ? hex(s.stroke) : null;
 }
 
-/** 絵の中の点 (x, y) の色 */
+/** 絵の中の点 (x, y) の色（上に重なった図形が勝つ） */
 function colorAt(x, y) {
-  let rgb = skyAt(y);
+  let rgb = [0, 0, 0];
   for (const s of shapes) {
     if (x < s.box[0] || x > s.box[2] || y < s.box[1] || y > s.box[3]) continue;
+    if (s.clip && !inPoly(x, y, s.clip)) continue;
+    const fillColor = () => (s.fillRgb ?? (s.fill ? gradAt(s.fill, y) : null));
     if (s.t === 'poly') {
-      if (inPoly(x, y, s.pts)) rgb = s.rgb;
+      const fill = s.fill && inPoly(x, y, s.pts) ? fillColor() : null;
+      if (fill) rgb = fill;
+      if (s.strokeRgb && s.sw) {
+        for (let i = 0; i < s.pts.length; i++) {
+          if (distToSegment(x, y, s.pts[i], s.pts[(i + 1) % s.pts.length]) <= s.sw / 2) rgb = s.strokeRgb;
+        }
+      }
     } else {
       const d = Math.hypot(x - s.cx, y - s.cy);
-      if (s.fillRgb && d <= s.r) rgb = s.fillRgb;
+      if (s.fill && d <= s.r) rgb = fillColor();
       if (s.strokeRgb && Math.abs(d - s.r) <= s.sw / 2) rgb = s.strokeRgb;
     }
   }
@@ -186,20 +237,36 @@ function png(size, fullBleed) {
 // ---- SVG（同じ図形のリストから作る）----
 const f = (n) => Number(n.toFixed(1));
 function svg() {
-  const stops = SKY_STOPS.map(([t, col]) => `<stop offset="${t}" stop-color="${col}"/>`).join('');
+  const grads = new Map();
+  const fillAttr = (s) => {
+    if (!s.fill) return ' fill="none"';
+    if (typeof s.fill === 'string') return ` fill="${s.fill}"`;
+    grads.set(s.fill.id, s.fill);
+    return ` fill="url(#${s.fill.id})"`;
+  };
+  const strokeAttr = (s) => (s.stroke && s.sw ? ` stroke="${s.stroke}" stroke-width="${s.sw}" stroke-linejoin="round"` : '');
+  const clips = new Map();
+  const clipAttr = (s) => {
+    if (!s.clip) return '';
+    const id = `c${clips.size}`;
+    const key = JSON.stringify(s.clip);
+    if (!clips.has(key)) clips.set(key, { id, pts: s.clip });
+    return ` clip-path="url(#${clips.get(key).id})"`;
+  };
   const body = shapes
     .map((s) => {
-      if (s.t === 'poly') return `<polygon points="${s.pts.map((p) => p.join(',')).join(' ')}" fill="${s.fill}"/>`;
-      const fill = s.fill ? ` fill="${s.fill}"` : ' fill="none"';
-      const stroke = s.stroke && s.sw ? ` stroke="${s.stroke}" stroke-width="${s.sw}"` : '';
-      return `<circle cx="${f(s.cx)}" cy="${f(s.cy)}" r="${f(s.r)}"${fill}${stroke}/>`;
+      const common = `${fillAttr(s)}${strokeAttr(s)}${clipAttr(s)}`;
+      if (s.t === 'poly') return `<polygon points="${s.pts.map((p) => p.map(f).join(',')).join(' ')}"${common}/>`;
+      return `<circle cx="${f(s.cx)}" cy="${f(s.cy)}" r="${f(s.r)}"${common}/>`;
     })
     .join('');
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}">` +
-    `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient><clipPath id="round"><rect width="${SIZE}" height="${SIZE}" rx="112"/></clipPath></defs>` +
-    `<g clip-path="url(#round)"><rect width="${SIZE}" height="${SIZE}" fill="url(#sky)"/>${body}</g></svg>\n`
-  );
+  const defs =
+    [...grads.values()]
+      .map((g) => `<linearGradient id="${g.id}" gradientUnits="userSpaceOnUse" x1="0" y1="${g.y0}" x2="0" y2="${g.y1}">${g.stops.map(([t, col]) => `<stop offset="${t}" stop-color="${col}"/>`).join('')}</linearGradient>`)
+      .join('') +
+    [...clips.values()].map((c) => `<clipPath id="${c.id}"><polygon points="${c.pts.map((p) => p.map(f).join(',')).join(' ')}"/></clipPath>`).join('') +
+    `<clipPath id="round"><rect width="${SIZE}" height="${SIZE}" rx="112"/></clipPath>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}"><defs>${defs}</defs><g clip-path="url(#round)">${body}</g></svg>\n`;
 }
 
 const out = new URL('../public/icons/', import.meta.url);
