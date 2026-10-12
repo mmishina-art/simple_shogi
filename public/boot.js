@@ -3,23 +3,38 @@
 // 起動できなかったとき（キャッシュのファイルの食い違いなど）に、キャッシュを消して読み込み直す。
 //  ・保存データ（localStorage）は消さない
 //  ・1回目は自動でなおす。2分以内の2回目は、ボタン（#boot-repair）を出す
+//  ・消すのは、このアプリの Service Worker とキャッシュだけ。
+//    GitHub Pages では、すべてのアプリが同じサイトに載り、Service Worker とキャッシュはサイトの単位で見えるので、
+//    範囲を絞らないと、ほかのアプリのオフライン用のキャッシュまで消してしまう。
 // アプリが起動できたら、main.ts が window.__appStarted = true にする。
 (function () {
   'use strict';
-  var REPAIR_KEY = 'simple-shogi:repaired-at';
+  // このアプリの置き場所（boot.js と同じ場所）と ID（index.html の <meta name="app-id">。package.json の name）
+  var BASE = new URL('./', document.currentScript ? document.currentScript.src : location.href).href;
+  var meta = document.querySelector('meta[name="app-id"]');
+  var APP_ID = (meta && meta.content) || '';
+  var REPAIR_KEY = APP_ID + ':repaired-at';
   var WAIT_MS = window.__bootWaitMs || 8000; // テストでは短くできる
   var failed = false;
+
+  // このアプリの Service Worker か（scope がこのアプリの置き場所と同じ）
+  function isMyRegistration(reg) { return reg.scope === BASE; }
+  // このアプリのキャッシュか: 名前が「ID-」で始まる（手で書いた Service Worker）、
+  // または、名前が置き場所で終わる（Workbox の precache は、名前の最後に scope が付く）
+  function isMyCache(name) {
+    return (APP_ID !== '' && name.indexOf(APP_ID + '-') === 0) || name.slice(-BASE.length) === BASE;
+  }
 
   function repair() {
     var jobs = [];
     if ('serviceWorker' in navigator) {
       jobs.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
-        return Promise.all(regs.map(function (r) { return r.unregister(); }));
+        return Promise.all(regs.filter(isMyRegistration).map(function (r) { return r.unregister(); }));
       }));
     }
     if (window.caches) {
       jobs.push(caches.keys().then(function (keys) {
-        return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+        return Promise.all(keys.filter(isMyCache).map(function (k) { return caches.delete(k); }));
       }));
     }
     return Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });

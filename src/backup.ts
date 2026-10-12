@@ -4,7 +4,7 @@
 
 /** 保存データの形（schemaVersion）。保存の形を変えるときは上げ、storage.ts の migrate() に移行処理を書く。 */
 export const SCHEMA_VERSION = 2;
-export const BACKUP_APP = 'simple-shogi';
+export const BACKUP_APP = __APP_ID__;
 
 export interface BackupFile {
   app: string;

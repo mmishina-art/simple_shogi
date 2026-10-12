@@ -37,6 +37,19 @@ for (const [re, label] of [
 need(/id="install-open"/.test(html) && /id="install-dialog"/.test(html), '最初の画面にインストール説明の入口（#install-open と #install-dialog）がありません');
 need(/id="version"/.test(html), '最初の画面にバージョン表示（#version）がありません');
 need(existsSync(join(dist, 'boot.js')) && /<script src="boot.js">/.test(html) && /id="boot-error"/.test(html) && /id="boot-repair"/.test(html), '起動失敗時の復旧（boot.js と #boot-error / #boot-repair）がありません');
+// アプリの ID（package.json の name）。GitHub Pages では、すべてのアプリが同じサイトに載り、
+// localStorage・Service Worker・キャッシュを共有するので、アプリごとに別の名前にする。
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const idMeta = /<meta name="app-id" content="([^"]*)"/.exec(html)?.[1];
+need(idMeta === pkg.name, `index.html の app-id（${idMeta}）が package.json の name（${pkg.name}）と違います`);
+if (pkg.pwaTemplate !== true && pkg.name === 'pwa-app') {
+  errors.push('package.json の name が、テンプレートのままです（pwa-app）。アプリごとに別の名前にしてください（保存データが、ほかのアプリと混ざります）');
+}
+if (pkg.pwaTemplate === true && pkg.name !== 'pwa-app') {
+  errors.push('package.json の name を変えたので、テンプレート用の印 "pwaTemplate" を削除してください');
+}
+const boot = existsSync(join(dist, 'boot.js')) ? readFileSync(join(dist, 'boot.js'), 'utf8') : '';
+need(/isMyRegistration/.test(boot) && /isMyCache/.test(boot), 'boot.js の復旧が、このアプリの Service Worker とキャッシュだけに限定されていません（ほかのアプリのキャッシュまで消えます）');
 need(!/user-scalable=no|maximum-scale/.test(html), 'viewport で拡大を禁止しないでください（user-scalable=no / maximum-scale）');
 need(!/(?:src|href)="\/(?!\/)/.test(html), 'index.html に絶対パス（/ から始まる参照）があります。相対パスにしてください');
 

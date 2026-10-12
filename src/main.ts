@@ -321,7 +321,7 @@ byId('backup-export').addEventListener('click', () => {
   const blob = new Blob([exportBackup()], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `simple-shogi-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `${__APP_ID__}-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
 });
