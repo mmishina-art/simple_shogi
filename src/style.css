@@ -910,7 +910,7 @@ legend {
 
 .portrait svg {
   height: 100%;
-  max-height: 300px;
+  max-height: 400px;
   width: auto;
   filter: drop-shadow(0 4px 10px var(--shadow));
 }
@@ -938,53 +938,123 @@ legend {
 .portrait[data-tone='21'] { --tone-a: #8a2a22; --tone-b: #e8c050; }
 .portrait[data-tone='22'] { --tone-a: #6a2a50; --tone-b: #e8d0e0; }
 
+/* 人物の絵: 太い墨の線と、平らな色。影は半分だけ、うすく重ねる */
+.portrait svg {
+  overflow: visible;
+}
+
+.portrait .p-halo {
+  fill: var(--tone-b);
+  opacity: 0.32;
+}
+.portrait .p-brush {
+  fill: none;
+  stroke: var(--tone-b);
+  stroke-width: 5;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
 .portrait .p-body,
 .portrait .p-helm {
   fill: var(--tone-a);
   stroke: var(--ink);
-  stroke-width: 1.5;
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+}
+.portrait .p-body.dark {
+  fill: var(--ink);
+  fill-opacity: 0.3;
+  stroke: none;
+}
+.portrait .p-cape {
+  fill: var(--red);
+  stroke: var(--ink);
+  stroke-width: 2.6;
+  stroke-linejoin: round;
 }
 .portrait .p-trim {
   fill: var(--tone-b);
   stroke: var(--ink);
-  stroke-width: 1;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+.portrait .p-trim.juzu {
+  fill: none;
+  stroke: var(--tone-b);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 9;
 }
 .portrait .p-skin {
   fill: var(--skin);
   stroke: var(--ink);
-  stroke-width: 1.2;
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+}
+.portrait .p-shade {
+  fill: var(--ink);
+  fill-opacity: 0.16;
+  stroke: none;
 }
 .portrait .p-hair {
   fill: var(--hair);
   stroke: var(--ink);
-  stroke-width: 1;
-  color: var(--hair);
+  stroke-width: 2;
+  stroke-linejoin: round;
 }
+.portrait .p-hair.white,
 .portrait .p-white {
   fill: var(--white-hair);
   stroke: var(--ink);
-  stroke-width: 1;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
 }
 .portrait .p-metal {
   fill: var(--metal);
   stroke: var(--ink);
-  stroke-width: 1;
+  stroke-width: 2;
+  stroke-linejoin: round;
 }
 .portrait .p-red {
   fill: var(--red);
   stroke: var(--ink);
-  stroke-width: 1;
+  stroke-width: 1.6;
 }
 .portrait .p-line {
+  fill: none;
   stroke: var(--ink);
-  stroke-width: 1.8;
+  stroke-width: 2.6;
   stroke-linecap: round;
+  stroke-linejoin: round;
 }
-.portrait .p-line.thick {
-  stroke-width: 3.2;
+.portrait .p-line.thin {
+  stroke-width: 1.5;
+}
+.portrait .p-line.bold {
+  stroke-width: 4.6;
+}
+.portrait .p-line.white {
+  stroke: var(--white-hair);
+}
+.portrait .p-line.trim {
+  stroke: var(--tone-b);
+}
+.portrait .p-line.white.hair,
+.portrait .p-line.white {
+  stroke: var(--white-hair);
 }
 .portrait .p-ink {
   fill: var(--ink);
+  stroke: none;
+}
+.portrait .p-text {
+  fill: var(--ink);
+  stroke: none;
+  font-family: var(--serif);
+  font-weight: 700;
+}
+.portrait .p-text.white {
+  fill: var(--white-hair);
 }
 
 .dialogue {

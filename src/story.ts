@@ -5,16 +5,17 @@ import { HIDEYOSHI, HIDEYOSHI_EPILOGUE } from './story-data/hideyoshi';
 import { IEYASU, IEYASU_EPILOGUE } from './story-data/ieyasu';
 import { NOBUNAGA, NOBUNAGA_EPILOGUE } from './story-data/nobunaga';
 import { HIDEYOSHI_TALK, IEYASU_TALK, NOBUNAGA_TALK } from './story-data/talk';
-import type { ChapterData, Line, LookKind, Place, Talk } from './story-types';
+import type { Art, ChapterData, Line, Place, Talk } from './story-types';
 
-export type { ChapterData, Line, LookKind, Place, Talk };
+export type { Art, ChapterData, Line, Place, Talk };
 
 export interface Character {
   id: string;
   name: string;
   /** 肩書き */
   title: string;
-  look: LookKind;
+  /** 人物の絵の設定 */
+  art: Art;
   /** しゃべり声の基準の高さ(Hz)。低いほど渋い声 */
   voice: number;
   /** 色の組み合わせ（style.css の data-tone） */
@@ -55,28 +56,106 @@ export interface Chapter extends ChapterData {
 }
 
 export const CHARACTERS: Character[] = [
-  { id: 'nobunaga', name: '織田信長', title: '尾張の大名', look: 'horns', voice: 112, tone: 1 },
-  { id: 'nobukatsu', name: '織田信勝', title: '信長の弟', look: 'lord', voice: 210, tone: 2 },
-  { id: 'yoshimoto', name: '今川義元', title: '駿河の大大名', look: 'noble', voice: 160, tone: 3 },
-  { id: 'tatsuoki', name: '斎藤龍興', title: '美濃の大名', look: 'lord', voice: 230, tone: 4 },
-  { id: 'nagamasa', name: '浅井長政', title: '近江の大名', look: 'samurai', voice: 150, tone: 5 },
-  { id: 'shingen', name: '武田信玄', title: '甲斐の虎', look: 'whitemane', voice: 100, tone: 6 },
-  { id: 'katsuyori', name: '武田勝頼', title: '信玄の四男', look: 'moon', voice: 130, tone: 7 },
-  { id: 'kennyo', name: '顕如', title: '石山本願寺の法主', look: 'monk', voice: 140, tone: 8 },
-  { id: 'mitsuhide', name: '明智光秀', title: '織田家の重臣', look: 'strategist', voice: 175, tone: 9 },
-  { id: 'hideyoshi', name: '羽柴(豊臣)秀吉', title: '織田家の家臣、のち天下人', look: 'lord', voice: 240, tone: 10 },
-  { id: 'nagaharu', name: '別所長治', title: '三木城の城主', look: 'lord', voice: 250, tone: 11 },
-  { id: 'tsuneie', name: '吉川経家', title: '鳥取城の守将', look: 'samurai', voice: 135, tone: 12 },
-  { id: 'munekiyo', name: '清水宗治', title: '高松城の城主', look: 'elder', voice: 145, tone: 13 },
-  { id: 'katsuie', name: '柴田勝家', title: '織田家の筆頭家老', look: 'bandit', voice: 108, tone: 14 },
-  { id: 'ieyasu', name: '徳川家康', title: '三河の大名', look: 'samurai', voice: 165, tone: 15 },
-  { id: 'yoshihisa', name: '島津義久', title: '薩摩の大名', look: 'samurai', voice: 120, tone: 16 },
-  { id: 'ujimasa', name: '北条氏政', title: '小田原の大名', look: 'noble', voice: 155, tone: 17 },
-  { id: 'masanobu', name: '本多正信', title: '家康の家臣', look: 'strategist', voice: 185, tone: 18 },
-  { id: 'kanetsugu', name: '直江兼続', title: '上杉家の重臣', look: 'moon', voice: 170, tone: 19 },
-  { id: 'mitsunari', name: '石田三成', title: '豊臣家の奉行', look: 'strategist', voice: 200, tone: 20 },
-  { id: 'nobushige', name: '真田信繁', title: '大坂城の武将', look: 'horns', voice: 190, tone: 21 },
-  { id: 'hideyori', name: '豊臣秀頼', title: '秀吉の子', look: 'lord', voice: 215, tone: 22 },
+  {
+    id: 'nobunaga', name: '織田信長', title: '尾張の大名', voice: 112, tone: 1,
+    // 茶筅まげ、きびしい目、うすいひげ、南蛮風のマント。家紋は木瓜
+    art: { gear: 'chasen', body: 'cape', eyes: 'sharp', brows: 'angry', mouth: 'flat', beard: 'mustache', emblem: 'mokko', face: 'lean' },
+  },
+  {
+    id: 'nobukatsu', name: '織田信勝', title: '信長の弟', voice: 210, tone: 2,
+    art: { gear: 'topknot', body: 'kamishimo', eyes: 'calm', brows: 'thin', mouth: 'frown', beard: 'none', emblem: 'mokko', face: 'lean', extras: ['blush'] },
+  },
+  {
+    id: 'yoshimoto', name: '今川義元', title: '駿河の大大名', voice: 160, tone: 3,
+    // 烏帽子、白く塗った顔、まるい眉、公家風の装い
+    art: { gear: 'eboshi', body: 'noble', eyes: 'calm', brows: 'thin', mouth: 'flat', beard: 'none', emblem: 'bars', face: 'round', extras: ['whiteface', 'dotbrows'] },
+  },
+  {
+    id: 'tatsuoki', name: '斎藤龍興', title: '美濃の大名', voice: 230, tone: 4,
+    art: { gear: 'topknot', body: 'kamishimo', eyes: 'wide', brows: 'thin', mouth: 'frown', beard: 'none', emblem: 'ring', face: 'lean', extras: ['blush'] },
+  },
+  {
+    id: 'nagamasa', name: '浅井長政', title: '近江の大名', voice: 150, tone: 5,
+    art: { gear: 'kabuto', crest: 'kuwagata', body: 'armor', eyes: 'calm', brows: 'arched', mouth: 'flat', beard: 'mustache', emblem: 'kikkou', face: 'lean' },
+  },
+  {
+    id: 'shingen', name: '武田信玄', title: '甲斐の虎', voice: 100, tone: 6,
+    // 白い毛の兜(諏訪法性)と、風林火山の旗
+    art: { gear: 'kabuto', crest: 'tuft', body: 'armor', eyes: 'sharp', brows: 'thick', mouth: 'flat', beard: 'none', emblem: 'bishi', face: 'round', extras: ['wrinkles'], banner: 'furinkazan' },
+  },
+  {
+    id: 'katsuyori', name: '武田勝頼', title: '信玄の四男', voice: 130, tone: 7,
+    art: { gear: 'kabuto', crest: 'moon', body: 'armor', eyes: 'sharp', brows: 'angry', mouth: 'frown', beard: 'mustache', emblem: 'bishi', face: 'lean' },
+  },
+  {
+    id: 'kennyo', name: '顕如', title: '石山本願寺の法主', voice: 140, tone: 8,
+    // 剃髪、数珠、おだやかな顔
+    art: { gear: 'bald', body: 'robe', eyes: 'closed', brows: 'thin', mouth: 'smile', beard: 'none', emblem: 'ring', face: 'round', extras: ['juzu'] },
+  },
+  {
+    id: 'mitsuhide', name: '明智光秀', title: '織田家の重臣', voice: 175, tone: 9,
+    // 総髪、考え深い顔。家紋は桔梗
+    art: { gear: 'sohatsu', body: 'kamishimo', eyes: 'heavy', brows: 'thin', mouth: 'flat', beard: 'goatee', emblem: 'kikyo', face: 'lean' },
+  },
+  {
+    id: 'hideyoshi', name: '羽柴(豊臣)秀吉', title: '織田家の家臣、のち天下人', voice: 240, tone: 10,
+    // 大きな耳、笑った口、千成瓢箪の旗
+    art: { gear: 'topknot', body: 'kamishimo', eyes: 'wide', brows: 'arched', mouth: 'grin', beard: 'none', emblem: 'kiri', face: 'lean', extras: ['bigears', 'wrinkles'], banner: 'gourd' },
+  },
+  {
+    id: 'nagaharu', name: '別所長治', title: '三木城の城主', voice: 250, tone: 11,
+    art: { gear: 'topknot', body: 'armor', eyes: 'calm', brows: 'thin', mouth: 'frown', beard: 'none', emblem: 'ring', face: 'lean', extras: ['blush'] },
+  },
+  {
+    id: 'tsuneie', name: '吉川経家', title: '鳥取城の守将', voice: 135, tone: 12,
+    art: { gear: 'kabuto', crest: 'none', body: 'armor', eyes: 'sharp', brows: 'thick', mouth: 'flat', beard: 'mustache', emblem: 'ring', face: 'round' },
+  },
+  {
+    id: 'munekiyo', name: '清水宗治', title: '高松城の城主', voice: 145, tone: 13,
+    // 白い髪とひげ。覚悟を決めた顔
+    art: { gear: 'sohatsu', body: 'kamishimo', eyes: 'closed', brows: 'thick', mouth: 'flat', beard: 'goatee', emblem: 'ring', face: 'lean', hair: 'white', extras: ['wrinkles'] },
+  },
+  {
+    id: 'katsuie', name: '柴田勝家', title: '織田家の筆頭家老', voice: 108, tone: 14,
+    // 鬼柴田: ひげ面、きずあと、いかつい兜
+    art: { gear: 'kabuto', crest: 'kuwagata', body: 'armor', eyes: 'sharp', brows: 'angry', mouth: 'frown', beard: 'full', emblem: 'ring', face: 'round', extras: ['scar'] },
+  },
+  {
+    id: 'ieyasu', name: '徳川家康', title: '三河の大名', voice: 165, tone: 15,
+    // まるい顔、重たげな目、三つ葉葵
+    art: { gear: 'topknot', body: 'kamishimo', eyes: 'heavy', brows: 'thick', mouth: 'flat', beard: 'none', emblem: 'aoi', face: 'round', extras: ['blush'] },
+  },
+  {
+    id: 'yoshihisa', name: '島津義久', title: '薩摩の大名', voice: 120, tone: 16,
+    art: { gear: 'kabuto', crest: 'none', body: 'armor', eyes: 'sharp', brows: 'thick', mouth: 'flat', beard: 'mustache', emblem: 'cross', face: 'round' },
+  },
+  {
+    id: 'ujimasa', name: '北条氏政', title: '小田原の大名', voice: 155, tone: 17,
+    art: { gear: 'topknot', body: 'noble', eyes: 'calm', brows: 'arched', mouth: 'smile', beard: 'none', emblem: 'uroko', face: 'round', extras: ['blush'] },
+  },
+  {
+    id: 'masanobu', name: '本多正信', title: '家康の家臣', voice: 185, tone: 18,
+    art: { gear: 'sohatsu', body: 'kamishimo', eyes: 'heavy', brows: 'thin', mouth: 'smile', beard: 'goatee', emblem: 'ring', face: 'lean' },
+  },
+  {
+    id: 'kanetsugu', name: '直江兼続', title: '上杉家の重臣', voice: 170, tone: 19,
+    // 前立ては「愛」
+    art: { gear: 'kabuto', crest: 'ai', body: 'armor', eyes: 'calm', brows: 'thick', mouth: 'flat', beard: 'mustache', emblem: 'ai', face: 'lean' },
+  },
+  {
+    id: 'mitsunari', name: '石田三成', title: '豊臣家の奉行', voice: 200, tone: 20,
+    // 細面の秀才。旗印は「大一大万大吉」
+    art: { gear: 'sohatsu', body: 'armor', eyes: 'sharp', brows: 'thin', mouth: 'flat', beard: 'none', emblem: 'dai', face: 'lean' },
+  },
+  {
+    id: 'nobushige', name: '真田信繁', title: '大坂城の武将', voice: 190, tone: 21,
+    // 赤備え、鹿の角の前立て、六文銭
+    art: { gear: 'kabuto', crest: 'horns', body: 'armor', eyes: 'sharp', brows: 'angry', mouth: 'smile', beard: 'mustache', emblem: 'rokumon', face: 'lean' },
+  },
+  {
+    id: 'hideyori', name: '豊臣秀頼', title: '秀吉の子', voice: 215, tone: 22,
+    art: { gear: 'topknot', body: 'noble', eyes: 'calm', brows: 'arched', mouth: 'smile', beard: 'none', emblem: 'kiri', face: 'round', extras: ['blush'] },
+  },
 ];
 
 export const characterOf = (id: string): Character | undefined => CHARACTERS.find((c) => c.id === id);

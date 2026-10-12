@@ -116,6 +116,9 @@ test.describe('しゃべり声（文字が出るアニメーションを動か�
     const box = page.locator('#scene-box');
     for (let i = 0; i < 30 && (await page.locator('#scene-speaker').isHidden()); i++) await box.click();
     await expect(page.locator('#scene-speaker')).toHaveText('織田信長');
+    // 人物の絵（家紋つき）が描かれている
+    await expect(page.locator('#scene-portrait svg')).toBeVisible();
+    await expect(page.locator('#scene-portrait svg text, #scene-portrait svg circle').first()).toBeAttached();
     await expect.poll(async () => (await voices()).length, { timeout: 5000 }).toBeGreaterThan(2);
     // 信長の声の高さ（基準 112Hz の 1〜2 倍）で鳴っている
     for (const hz of await voices()) {
