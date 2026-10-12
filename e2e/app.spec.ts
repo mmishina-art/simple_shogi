@@ -15,7 +15,7 @@ const ALMOST_WON = [[57,48,1,0],[23,32,1,0],[62,53,1,0],[5,15,5,0],[61,52,1,0],[
 
 const RANKS = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
 /** 将棋の表記（筋・段）でマスを指す。盤の向きによらず、aria-label で探す */
-const cell = (page: Page, file: number, rank: number) => page.locator(`.cell[aria-label^="${file}${RANKS[rank]} "]`);
+const cell = (page: Page, file: number, rank: number) => page.locator(`#board .cell[aria-label^="${file}${RANKS[rank]} "]`);
 
 async function move(page: Page, from: [number, number], to: [number, number]): Promise<void> {
   await cell(page, ...from).click();
@@ -167,9 +167,11 @@ test('最初の画面からインストール方法を開ける（使ってい�
   await expect(dialog).toBeHidden();
 });
 
-test('将棋のあそびかたを開ける', async ({ page }) => {
+test('将棋のあそびかた(練習)から、ルールのまとめを開ける', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: '将棋のあそびかた' }).click();
+  await page.getByRole('button', { name: /将棋のあそびかた/ }).click();
+  await expect(page.locator('#screen-lessons')).toBeVisible();
+  await page.getByRole('button', { name: /ルールのまとめ/ }).click();
   await expect(page.locator('#rules-dialog')).toBeVisible();
   await expect(page.locator('#rules-dialog')).toContainText('二歩');
   await page.locator('#rules-dialog').getByRole('button', { name: 'とじる' }).click();
@@ -193,9 +195,9 @@ test('ふたり対戦: 駒を選ぶと動かせるマスが示され、動かす
 test('動けない駒・相手の駒を選んでも、何も起きない', async ({ page }) => {
   await startTwoPlayers(page);
   await cell(page, 8, 9).click(); // 桂は、動ける場所がない
-  await expect(page.locator('.cell.dest')).toHaveCount(0);
+  await expect(page.locator('#board .cell.dest')).toHaveCount(0);
   await cell(page, 7, 3).click(); // 後手の駒は、先手の番では選べない
-  await expect(page.locator('.cell.dest')).toHaveCount(0);
+  await expect(page.locator('#board .cell.dest')).toHaveCount(0);
 });
 
 test('角で相手の角を取るとき「成る / 成らない」を聞かれ、取った駒は持ち駒になって打てる', async ({ page }) => {
@@ -281,8 +283,8 @@ test('後手を選ぶと盤が回り、自分の駒が下にくる（CPU が先�
   await page.getByRole('button', { name: '対局開始' }).click();
   await expect(page.locator('#status')).toContainText('あなたの番です', { timeout: 10_000 });
   // 画面の左上のマスは 1 筋・九段（盤を回しているので）
-  await expect(page.locator('.cell').first()).toHaveAttribute('aria-label', /^1九 /);
-  await expect(page.locator('.file-labels span').first()).toHaveText('1');
+  await expect(page.locator('#board .cell').first()).toHaveAttribute('aria-label', /^1九 /);
+  await expect(page.locator('#file-labels span').first()).toHaveText('1');
   await expect(page.locator('#name-bottom')).toContainText('あなた');
 });
 
@@ -606,3 +608,138 @@ test.describe('起動失敗の復旧', () => {
     expect(await page.evaluate(() => caches.has('other-app-v1'))).toBe(true);
   });
 });
+
+// ---- チュートリアル ----
+const lessonCell = (page: Page, file: number, rank: number) => page.locator(`#lesson-board .cell[aria-label^="${file}${RANKS[rank]} "]`);
+
+async function openLesson(page: Page, index: number): Promise<void> {
+  await page.goto('/');
+  await page.getByRole('button', { name: /将棋のあそびかた/ }).click();
+  await page.locator('#lesson-list .chapter').nth(index).click();
+  await expect(page.locator('#screen-lesson')).toBeVisible();
+}
+
+test('チュートリアル: 15 のレッスンが並び、最初は何も「済」ではない', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /将棋のあそびかた/ }).click();
+  await expect(page.locator('#lesson-list .chapter')).toHaveCount(15);
+  await expect(page.locator('#lesson-list .chapter').nth(1)).toContainText('歩');
+  await expect(page.locator('#lesson-list .ch-state:not(:empty)')).toHaveCount(0);
+});
+
+// 駒の動き・取るレッスンは、[レッスン番号, 動かす駒のマス, 目標のマス]
+const MOVE_LESSONS: [number, [number, number], [number, number]][] = [
+  [1, [5, 7], [5, 6]], // 歩
+  [2, [5, 8], [5, 4]], // 香
+  [3, [5, 7], [4, 5]], // 桂（歩を飛び越える）
+  [4, [5, 5], [6, 6]], // 銀（斜め後ろ）
+  [5, [5, 5], [5, 6]], // 金（真後ろ）
+  [6, [8, 8], [4, 4]], // 角
+  [7, [5, 8], [5, 5]], // 飛
+  [8, [5, 9], [4, 8]], // 玉
+  [9, [5, 6], [5, 5]], // 取る
+];
+for (const [index, from, to] of MOVE_LESSONS) {
+  test(`チュートリアル: レッスン ${index + 1} の目標を達成できる`, async ({ page }) => {
+    await openLesson(page, index);
+    await expect(page.locator('#lesson-goal')).toContainText('目標');
+    await expect(lessonCell(page, ...to)).toHaveClass(/goal/); // 目標のマスに、点線の印
+    await lessonCell(page, ...from).click();
+    await expect(lessonCell(page, ...to)).toHaveClass(/dest/);
+    await lessonCell(page, ...to).click();
+    await expect(page.locator('#lesson-status')).toContainText('✓');
+    await expect(page.locator('#lesson-next')).toHaveClass(/primary/);
+  });
+}
+
+test('チュートリアル: 目標とちがう手を指すと、ヒントが出て、盤がもとにもどる', async ({ page }) => {
+  await openLesson(page, 2); // 香
+  await lessonCell(page, 5, 8).click();
+  await lessonCell(page, 5, 6).click(); // 5四の歩を取らずに、途中で止まる
+  await expect(page.locator('#lesson-status')).toContainText('ちがうよ');
+  await expect(page.locator('#lesson-status')).toContainText('香は');
+  await expect(page.locator('#lesson-status')).toContainText('もういちど', { timeout: 5000 });
+  await expect(lessonCell(page, 5, 8)).toHaveAttribute('aria-label', '5八 香(先手)');
+});
+
+test('チュートリアル: 「やりなおす」で、盤がもとにもどる', async ({ page }) => {
+  await openLesson(page, 1);
+  await lessonCell(page, 5, 7).click();
+  await lessonCell(page, 5, 6).click();
+  await expect(page.locator('#lesson-status')).toContainText('✓');
+  await page.getByRole('button', { name: 'やりなおす' }).click();
+  await expect(lessonCell(page, 5, 7)).toHaveAttribute('aria-label', '5七 歩(先手)');
+});
+
+test('チュートリアル: 成るレッスンでは「成る」を選ぶと達成、「成らない」だとヒント', async ({ page }) => {
+  await openLesson(page, 11);
+  await lessonCell(page, 5, 4).click();
+  await lessonCell(page, 5, 3).click();
+  await page.locator('#promote-dialog').getByRole('button', { name: '成らない' }).click();
+  await expect(page.locator('#lesson-status')).toContainText('ちがうよ');
+  await expect(page.locator('#lesson-status')).toContainText('もういちど', { timeout: 5000 });
+  await lessonCell(page, 5, 4).click();
+  await lessonCell(page, 5, 3).click();
+  await page.locator('#promote-dialog').getByRole('button', { name: '成る' }).click();
+  await expect(page.locator('#lesson-status')).toContainText('✓');
+  await expect(lessonCell(page, 5, 3)).toHaveAttribute('aria-label', /と\(先手\)/);
+});
+
+test('チュートリアル: 持ち駒を打つレッスン', async ({ page }) => {
+  await openLesson(page, 10);
+  await expect(page.locator('#lesson-hand-panel')).toBeVisible();
+  await page.getByRole('button', { name: '持ち駒 歩 1枚' }).click();
+  await expect(lessonCell(page, 3, 5)).toHaveClass(/dest/);
+  await lessonCell(page, 3, 5).click();
+  await expect(page.locator('#lesson-status')).toContainText('✓');
+  await expect(lessonCell(page, 3, 5)).toHaveAttribute('aria-label', '3五 歩(先手)');
+});
+
+test('チュートリアル: 二歩になるマスには打てず、理由が表示される', async ({ page }) => {
+  await openLesson(page, 12);
+  await page.getByRole('button', { name: '持ち駒 歩 1枚' }).click();
+  await expect(lessonCell(page, 5, 5)).not.toHaveClass(/dest/); // 5筋は二歩
+  await expect(lessonCell(page, 6, 5)).toHaveClass(/dest/);
+  await lessonCell(page, 5, 5).click();
+  await expect(page.locator('#lesson-status')).toContainText('二歩');
+  await lessonCell(page, 6, 5).click();
+  await expect(page.locator('#lesson-status')).toContainText('✓');
+});
+
+test('チュートリアル: 詰みのレッスン（飛を3一に動かして詰ませる）', async ({ page }) => {
+  await openLesson(page, 13);
+  await lessonCell(page, 3, 3).click();
+  await lessonCell(page, 3, 1).click();
+  await page.locator('#promote-dialog').getByRole('button', { name: '成らない' }).click();
+  await expect(page.locator('#lesson-status')).toContainText('詰みです');
+});
+
+test('チュートリアル: 読むだけのレッスンでは、自由に動かせて、前後のレッスンに移れる。できたレッスンは保存される', async ({ page }) => {
+  await openLesson(page, 0);
+  await expect(page.locator('#lesson-title')).toContainText('1/15');
+  await expect(page.getByRole('button', { name: 'まえへ' })).toBeDisabled();
+  await move2(page, [7, 7], [7, 6]);
+  await expect(page.locator('#lesson-status')).toContainText('動かせたね');
+  await page.getByRole('button', { name: 'つぎへ' }).click();
+  await expect(page.locator('#lesson-title')).toContainText('2/15');
+  await page.getByRole('button', { name: 'まえへ' }).click();
+  await expect(page.locator('#lesson-title')).toContainText('1/15');
+  await page.getByRole('button', { name: /一覧へ/ }).click();
+  await expect(page.locator('#lesson-list .chapter').nth(0)).toContainText('済');
+  await page.reload();
+  await page.getByRole('button', { name: /将棋のあそびかた/ }).click();
+  await expect(page.locator('#lesson-list .chapter').nth(0)).toContainText('済');
+});
+
+test('チュートリアル: 最後のレッスンの「おわる」で、一覧にもどる', async ({ page }) => {
+  await openLesson(page, 14);
+  await expect(page.locator('#lesson-title')).toContainText('15/15');
+  await page.getByRole('button', { name: 'おわる' }).click();
+  await expect(page.locator('#screen-lessons')).toBeVisible();
+  await expect(page.locator('#lesson-list .chapter').nth(14)).toContainText('済');
+});
+
+async function move2(page: Page, from: [number, number], to: [number, number]): Promise<void> {
+  await lessonCell(page, ...from).click();
+  await lessonCell(page, ...to).click();
+}

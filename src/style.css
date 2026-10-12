@@ -463,6 +463,37 @@ legend {
   content: '✓ ';
 }
 
+/* ---- チュートリアル ---- */
+.lesson-card {
+  margin: 4px 0 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.lesson-card p {
+  margin: 0 0 6px;
+}
+
+.goal-banner {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-left: 4px solid var(--gold);
+  background: var(--surface-2);
+  font-family: var(--serif);
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* 目標のマス: 点線のわく（色だけに頼らない） */
+.cell.goal {
+  outline: 3px dashed var(--vermilion);
+  outline-offset: -4px;
+}
+
 /* ---- 対局 ---- */
 .game {
   display: flex;
@@ -720,6 +751,8 @@ legend {
   flex: 1;
   max-width: 130px;
   margin: 0;
+  padding-inline: 6px;
+  white-space: nowrap;
 }
 
 /* ---- ダイアログ ---- */

@@ -46,7 +46,7 @@
           <button id="menu-continue" type="button" class="primary" hidden>つづきから</button>
           <button id="menu-story" type="button" class="primary">物語 〜戦国三英雄伝〜</button>
           <button id="menu-free" type="button">自由対局</button>
-          <button id="menu-rules" type="button">将棋のあそびかた</button>
+          <button id="menu-rules" type="button">将棋のあそびかた(練習)</button>
           <button id="menu-settings" type="button">せってい</button>
         </nav>
         <button id="install-open" type="button" class="link">📲 アプリとしてインストールする方法</button>
@@ -64,6 +64,48 @@
         <p id="arc-summary" class="muted small lead"></p>
         <p id="story-notice" class="notice" role="status" hidden></p>
         <ol id="chapter-list" class="chapters"></ol>
+      </section>
+
+      <!-- チュートリアル: レッスンの一覧 -->
+      <section id="screen-lessons" class="screen" aria-labelledby="lessons-heading" hidden>
+        <header class="bar">
+          <button id="lessons-back" type="button" class="bar-button">← もどる</button>
+          <h2 id="lessons-heading" class="bar-title">将棋のあそびかた</h2>
+          <span class="bar-spacer"></span>
+        </header>
+        <p class="muted small lead">盤の上で、実際に駒を動かしながら、1つずつ覚えよう。</p>
+        <button id="lessons-rules" type="button" class="wide">📖 ルールのまとめを読む</button>
+        <ol id="lesson-list" class="chapters"></ol>
+      </section>
+
+      <!-- チュートリアル: 練習 -->
+      <section id="screen-lesson" class="screen lesson" aria-labelledby="lesson-title" hidden>
+        <header class="bar">
+          <button id="lesson-back" type="button" class="bar-button">← 一覧へ</button>
+          <h2 id="lesson-title" class="bar-title"></h2>
+          <button type="button" class="bar-button sound-toggle" aria-label="効果音" aria-pressed="true">🔊</button>
+        </header>
+        <div class="lesson-card">
+          <div id="lesson-text"></div>
+          <p id="lesson-goal" class="goal-banner"></p>
+        </div>
+        <div class="board-wrap">
+          <div class="file-labels" id="lesson-file-labels" aria-hidden="true"></div>
+          <div class="board-row">
+            <div class="board" id="lesson-board" role="group" aria-label="練習の盤"></div>
+            <div class="rank-labels" id="lesson-rank-labels" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="player" id="lesson-hand-panel">
+          <p class="player-name">持ち駒</p>
+          <div class="hand" id="lesson-hand" role="group" aria-label="あなたの持ち駒"></div>
+        </div>
+        <p id="lesson-status" class="status" role="status" aria-live="polite"></p>
+        <div class="controls">
+          <button id="lesson-prev" type="button">まえへ</button>
+          <button id="lesson-reset" type="button">やりなおす</button>
+          <button id="lesson-next" type="button" class="primary">つぎへ</button>
+        </div>
       </section>
 
       <!-- 自由対局のえらびかた -->
