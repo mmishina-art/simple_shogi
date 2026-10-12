@@ -83,6 +83,7 @@ Vite + TypeScript + vite-plugin-pwa + Vitest + Playwright + ESLint。UI フレ�
 - `prefers-reduced-motion: reduce` でアニメーションを無効化する。
 - アクセシビリティ: 結果は `aria-live` 領域でも読み上げる。ボタンに `aria-label` / `aria-pressed`。色だけで状態を伝えない。
 - 効果音は Web Audio で合成(音声ファイルを持たない)。オン/オフ設定を必ず用意する。
+- **iPhone の画面の上端**: ホーム画面アプリで、ステータスバーの下に内容が入り込むと、iOS がそこをぼかして文字が読みにくくなる(`simple_chess`・`simple_blackjack` と同じ症状)。そのため `index.html` で `apple-mobile-web-app-status-bar-style` を `black`(不透明。`black-translucent` にしない)にし、`src/style.css` の `--safe-top`(安全領域 + `--top-gap` 24px)を上端の余白に使う(`env(safe-area-inset-top)` だけにしない)。**`.screen` の `min-height` は、上端の余白と同じ式で連動させる**(引き忘れると、画面にぴったり収まっていた画面が、はみ出してスクロールする)。`tests/top-edge.test.ts` が確認する。
 
 ## 画面の確認
 

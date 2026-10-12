@@ -3,6 +3,10 @@
 :root {
   color-scheme: dark;
 
+  /* iPhone の画面の上端は、システムがぼかす帯がある。文字がその帯に入らないよう、安全領域の上に余白を足す（simple_chess と同じ） */
+  --top-gap: 24px;
+  --safe-top: calc(env(safe-area-inset-top) + var(--top-gap));
+
   --bg: #16110d;
   --bg-deep: #0f0b08;
   --surface: #241c15;
@@ -87,7 +91,7 @@ main {
   max-width: 480px;
   margin: 0 auto;
   /* iPhone のノッチ・ホームバーを避ける */
-  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+  padding: max(10px, var(--safe-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
     max(12px, env(safe-area-inset-left));
 }
 
@@ -171,7 +175,9 @@ button.link {
 
 /* ---- 画面共通 ---- */
 .screen {
-  min-height: calc(100dvh - 30px);
+  /* 画面にぴったり収める: 上の余白（main の padding-top。--safe-top に連動）と、下の余白などの 20px を引く。
+     上の余白を変えるときは、ここも同じ式で連動させる（引き忘れると、画面がはみ出してスクロールする） */
+  min-height: calc(100dvh - max(10px, var(--safe-top)) - 20px);
 }
 
 .bar {
@@ -868,7 +874,7 @@ legend {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: max(10px, var(--safe-top)) max(12px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   background:
     radial-gradient(circle at 78% 20%, var(--glow) 0 11%, transparent 12%),
     linear-gradient(var(--sky-a), var(--sky-b));
