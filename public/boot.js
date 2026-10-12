@@ -6,7 +6,7 @@
 // アプリが起動できたら、main.ts が window.__appStarted = true にする。
 (function () {
   'use strict';
-  var REPAIR_KEY = 'pwa-app:repaired-at';
+  var REPAIR_KEY = 'simple-shogi:repaired-at';
   var WAIT_MS = window.__bootWaitMs || 8000; // テストでは短くできる
   var failed = false;
 

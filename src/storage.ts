@@ -3,7 +3,7 @@
 
 import { SCHEMA_VERSION, createBackup, parseBackup } from './backup';
 
-const PREFIX = 'pwa-app';
+const PREFIX = 'simple-shogi';
 
 export function load<T>(key: string, fallback: T): T {
   try {

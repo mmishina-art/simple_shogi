@@ -1,6 +1,6 @@
 {
-  "name": "pwa-app",
-  "version": "0.1.0",
+  "name": "simple-shogi",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
