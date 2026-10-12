@@ -1,7 +1,34 @@
 // ストーリーのデータの型。
 
-/** 顔のイラストの種類（描き分けは portrait.ts） */
-export type LookKind = 'lord' | 'elder' | 'bandit' | 'monk' | 'woman' | 'strategist' | 'ninja' | 'horns' | 'moon' | 'samurai' | 'noble' | 'whitemane';
+/** 人物の絵の設定。部品の組み合わせと、家紋・小道具で、人物ごとの味を出す（描き方は portrait.ts） */
+export type GearKind = 'topknot' | 'chasen' | 'sohatsu' | 'bald' | 'eboshi' | 'kabuto';
+export type CrestKind = 'none' | 'horns' | 'moon' | 'kuwagata' | 'tuft' | 'ai' | 'sun';
+export type BodyKind = 'kamishimo' | 'armor' | 'robe' | 'noble' | 'cape';
+export type EyesKind = 'calm' | 'sharp' | 'closed' | 'wide' | 'heavy';
+export type BrowsKind = 'thin' | 'thick' | 'angry' | 'arched';
+export type MouthKind = 'smile' | 'flat' | 'frown' | 'grin';
+export type BeardKind = 'none' | 'mustache' | 'goatee' | 'full';
+/** 家紋 */
+export type EmblemKind = 'mokko' | 'aoi' | 'kikyo' | 'rokumon' | 'ai' | 'kiri' | 'dai' | 'uroko' | 'bishi' | 'bars' | 'cross' | 'kikkou' | 'ring';
+export type ExtraKind = 'scar' | 'bigears' | 'wrinkles' | 'whiteface' | 'dotbrows' | 'blush' | 'juzu';
+
+export interface Art {
+  gear: GearKind;
+  /** 兜の前立て（gear が kabuto のとき） */
+  crest?: CrestKind;
+  body: BodyKind;
+  eyes: EyesKind;
+  brows: BrowsKind;
+  mouth: MouthKind;
+  beard: BeardKind;
+  emblem: EmblemKind;
+  face?: 'round' | 'lean';
+  /** 髪とひげの色（既定は黒） */
+  hair?: 'black' | 'white';
+  extras?: ExtraKind[];
+  /** 背中の小道具: 千成瓢箪 / 風林火山の旗 */
+  banner?: 'gourd' | 'furinkazan';
+}
 
 export interface Line {
   /** 話す人の id。'narr' は地の文、'memo' は歴史メモ */

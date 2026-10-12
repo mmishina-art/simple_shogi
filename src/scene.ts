@@ -48,7 +48,7 @@ export function runScene(lines: Line[], place: Place, placeName: string): Promis
       portrait.hidden = !who;
       if (who) {
         portrait.dataset.tone = String(who.tone);
-        portrait.append(portraitSvg(who.look));
+        portrait.append(portraitSvg(who.art));
       }
       sr.textContent = `${who ? `${who.name}: ` : memo ? '歴史メモ: ' : ''}${line.text}`;
       window.clearInterval(timer);
