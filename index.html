@@ -4,45 +4,231 @@
     <meta charset="UTF-8" />
     <!-- ピンチ拡大は許可する（user-scalable=no / maximum-scale は入れない） -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#1f6feb" />
-    <meta name="description" content="PWAアプリのテンプレート" />
+    <meta name="theme-color" content="#16110d" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="戦国の世を旅しながら遊ぶ、和風の将棋アプリ。CPU対戦・ふたり対戦・ストーリーモード。" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="PWAアプリ" />
+    <meta name="apple-mobile-web-app-title" content="戦国将棋" />
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-    <title>PWAアプリ</title>
+    <title>戦国将棋</title>
   </head>
   <body>
     <main id="app">
-      <header class="header">
-        <h1>PWAアプリ</h1>
-        <button id="sound-button" type="button" class="icon-button" aria-label="音" aria-pressed="true">🔊</button>
-      </header>
-
-      <!-- サンプル: タップ回数を数える。本番では置き換える -->
-      <section class="card">
-        <p class="count" id="count" aria-live="polite">0</p>
-        <p class="muted">最高記録: <span id="best">0</span></p>
-        <button id="tap-button" type="button" class="primary">タップ</button>
-        <button id="reset-button" type="button">リセット</button>
+      <!-- タイトル -->
+      <section id="screen-title" class="screen title" aria-labelledby="logo">
+        <div class="hero">
+        <svg class="title-art" viewBox="0 0 360 200" role="img" aria-label="夕日と山、城のイラスト">
+          <circle class="art-sun" cx="262" cy="78" r="44" />
+          <path class="art-far" d="M0 150 L58 100 L110 140 L170 88 L240 150 L300 108 L360 150 L360 200 L0 200 Z" />
+          <rect class="art-mist" x="0" y="138" width="360" height="22" />
+          <path class="art-near" d="M0 200 L0 170 Q80 150 180 164 Q280 150 360 170 L360 200 Z" />
+          <g class="art-castle">
+            <rect x="146" y="138" width="68" height="28" />
+            <path d="M136 140 L224 140 L210 128 L150 128 Z" />
+            <rect x="156" y="112" width="48" height="16" />
+            <path d="M146 114 L214 114 L202 102 L158 102 Z" />
+            <rect x="166" y="88" width="28" height="14" />
+            <path d="M156 90 L204 90 L192 76 L168 76 Z" />
+            <path d="M180 76 L180 66 M168 76 L163 69 M192 76 L197 69" />
+          </g>
+          <path class="art-bird" d="M140 60 q6 -8 12 0 q6 -8 12 0 M172 38 q5 -6 10 0 q5 -6 10 0" />
+        </svg>
+        <h1 id="logo" class="logo" aria-label="戦国将棋"><span aria-hidden="true">戦<br />国</span><span aria-hidden="true">将<br />棋</span></h1>
+        </div>
+        <p class="subtitle">― 葦原の乱 ―</p>
+        <nav class="menu" aria-label="メニュー">
+          <button id="menu-continue" type="button" class="primary" hidden>つづきから</button>
+          <button id="menu-story" type="button" class="primary">物語 〜戦国絵巻〜</button>
+          <button id="menu-free" type="button">自由対局</button>
+          <button id="menu-rules" type="button">将棋のあそびかた</button>
+          <button id="menu-settings" type="button">せってい</button>
+        </nav>
+        <button id="install-open" type="button" class="link">📲 アプリとしてインストールする方法</button>
+        <p class="muted version">v<span id="version"></span></p>
       </section>
 
-      <details class="backup">
-        <summary>記録のバックアップ</summary>
-        <p class="muted">記録は、このブラウザの中にだけ保存されています。ファイルに残しておくと、消えたときに戻せます。</p>
-        <button id="backup-export" type="button">ファイルに書き出す</button>
-        <label class="file-button">ファイルから読み込む<input id="backup-import" type="file" accept="application/json,.json" hidden></label>
-        <p id="backup-message" class="muted" role="status"></p>
-      </details>
+      <!-- 物語: 話の選択 -->
+      <section id="screen-story" class="screen" aria-labelledby="story-heading" hidden>
+        <header class="bar">
+          <button id="story-back" type="button" class="bar-button">← もどる</button>
+          <h2 id="story-heading" class="bar-title">物語 〜戦国絵巻〜</h2>
+          <span class="bar-spacer"></span>
+        </header>
+        <p class="muted lead">勝つと、次の話が開きます。</p>
+        <ol id="chapter-list" class="chapters"></ol>
+      </section>
 
-      <button id="install-open" type="button" class="link">📲 アプリとしてインストールする方法</button>
+      <!-- 自由対局のえらびかた -->
+      <section id="screen-free" class="screen" aria-labelledby="free-heading" hidden>
+        <header class="bar">
+          <button id="free-back" type="button" class="bar-button">← もどる</button>
+          <h2 id="free-heading" class="bar-title">自由対局</h2>
+          <span class="bar-spacer"></span>
+        </header>
+        <form id="free-form" class="panel">
+          <fieldset>
+            <legend>あいて</legend>
+            <label class="choice"><input type="radio" name="opponent" value="cpu" checked /><span>CPU</span></label>
+            <label class="choice"><input type="radio" name="opponent" value="two" /><span>ふたりで</span></label>
+          </fieldset>
+          <fieldset id="free-level">
+            <legend>CPU の強さ</legend>
+            <label class="choice"><input type="radio" name="level" value="2" /><span>やさしい</span></label>
+            <label class="choice"><input type="radio" name="level" value="4" checked /><span>ふつう</span></label>
+            <label class="choice"><input type="radio" name="level" value="6" /><span>つよい</span></label>
+            <label class="choice"><input type="radio" name="level" value="8" /><span>達人</span></label>
+          </fieldset>
+          <fieldset id="free-side">
+            <legend>あなたの手番</legend>
+            <label class="choice"><input type="radio" name="side" value="0" checked /><span>先手(下)</span></label>
+            <label class="choice"><input type="radio" name="side" value="1" /><span>後手(上)</span></label>
+            <label class="choice"><input type="radio" name="side" value="random" /><span>おまかせ</span></label>
+          </fieldset>
+          <p class="muted small" id="free-note">「ふたりで」は、1台の端末を向かい合って使います。相手側の駒は上下さかさまに表示されます。</p>
+          <button type="submit" class="primary wide">対局開始</button>
+        </form>
+      </section>
 
-      <p class="muted version">v<span id="version"></span></p>
+      <!-- 対局 -->
+      <section id="screen-game" class="screen game" aria-labelledby="game-title" hidden>
+        <header class="bar">
+          <button id="game-back" type="button" class="bar-button" aria-label="メニューにもどる(対局は自動で保存されます)">← もどる</button>
+          <h2 id="game-title" class="bar-title"></h2>
+          <button type="button" class="bar-button sound-toggle" aria-label="効果音" aria-pressed="true">🔊</button>
+        </header>
+
+        <div class="player" id="panel-top">
+          <p class="player-name"><span id="name-top"></span></p>
+          <div class="hand" id="hand-top" role="group" aria-label="上側の持ち駒"></div>
+        </div>
+
+        <div class="board-wrap">
+          <div class="file-labels" id="file-labels" aria-hidden="true"></div>
+          <div class="board-row">
+            <div class="board" id="board" role="group" aria-label="将棋盤"></div>
+            <div class="rank-labels" id="rank-labels" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div class="player" id="panel-bottom">
+          <p class="player-name"><span id="name-bottom"></span></p>
+          <div class="hand" id="hand-bottom" role="group" aria-label="下側の持ち駒"></div>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <div class="controls">
+          <button id="btn-undo" type="button">待った</button>
+          <button id="btn-kifu" type="button">棋譜</button>
+          <button id="btn-resign" type="button">投了</button>
+        </div>
+      </section>
+
+      <!-- 物語の会話 -->
+      <section id="screen-scene" class="screen scene" data-place="castle" aria-label="物語" hidden>
+        <div class="scene-top">
+          <p id="scene-place" class="scene-place"></p>
+          <button id="scene-skip" type="button" class="bar-button">スキップ</button>
+        </div>
+        <div id="scene-portrait" class="portrait" data-tone="1" aria-hidden="true"></div>
+        <button id="scene-box" type="button" class="dialogue" aria-label="次へ">
+          <span id="scene-speaker" class="speaker"></span>
+          <span id="scene-text" class="speech"></span>
+          <span class="next" aria-hidden="true">▼</span>
+        </button>
+        <p id="scene-sr" class="sr-only" aria-live="polite"></p>
+      </section>
     </main>
 
+    <!-- せってい -->
+    <dialog id="settings-dialog" class="modal" aria-labelledby="settings-title">
+      <h2 id="settings-title">せってい</h2>
+      <p>
+        <button type="button" class="sound-toggle wide" aria-pressed="true">🔊 効果音</button>
+      </p>
+      <h3>記録のバックアップ</h3>
+      <p class="muted small">記録は、このブラウザの中にだけ保存されています。ファイルに残しておくと、消えたときに戻せます。</p>
+      <button id="backup-export" type="button">ファイルに書き出す</button>
+      <label class="file-button">ファイルから読み込む<input id="backup-import" type="file" accept="application/json,.json" hidden /></label>
+      <p id="backup-message" class="muted small" role="status"></p>
+      <button type="button" class="wide" data-close>とじる</button>
+    </dialog>
+
+    <!-- 将棋のあそびかた -->
+    <dialog id="rules-dialog" class="modal" aria-labelledby="rules-title">
+      <h2 id="rules-title">将棋のあそびかた</h2>
+      <p class="muted small">相手の「玉(王)」を詰ませたら勝ちです。先手(下側)から、交互に1手ずつ指します。</p>
+      <h3>駒の動き</h3>
+      <ul class="rules-list">
+        <li><strong>歩</strong> 前に1マス進む。</li>
+        <li><strong>香</strong> 前にまっすぐ、何マスでも進む。</li>
+        <li><strong>桂</strong> 前に2マス、左右に1マスの位置へ跳ぶ。他の駒を飛び越せる。</li>
+        <li><strong>銀</strong> 前と、斜め4方向に1マス。</li>
+        <li><strong>金</strong> 前・横・後ろに1マス、斜め前に1マス。</li>
+        <li><strong>角</strong> 斜めに、何マスでも進む。</li>
+        <li><strong>飛</strong> たてよこに、何マスでも進む。</li>
+        <li><strong>玉(王)</strong> 8方向に1マス。取られたら負け。</li>
+      </ul>
+      <h3>成り</h3>
+      <p>相手の陣地(いちばん奥の3段)に入る、出る、中で動くとき、歩・香・桂・銀・角・飛は「成る」ことができます。成ると金と同じ動きになります(角は<strong>馬</strong>、飛は<strong>龍</strong>になり、さらに玉の動きも加わります)。動けなくなる場所(歩・香は最奥、桂は奥の2段)では、必ず成ります。</p>
+      <h3>持ち駒</h3>
+      <p>取った相手の駒は、自分の「持ち駒」になり、次の手からは盤の空きマスのどこにでも自分の駒として<strong>打つ</strong>ことができます(成っていた駒も元に戻ります)。</p>
+      <h3>してはいけない手</h3>
+      <ul class="rules-list">
+        <li><strong>二歩</strong> 自分の歩がある筋に、さらに歩を打つこと。</li>
+        <li><strong>打ち歩詰め</strong> 持ち駒の歩を打って、そのまま詰ませること。</li>
+        <li>動けなくなる場所に歩・香・桂を打つこと。</li>
+        <li>自分の玉が王手のまま(取られる形のまま)にすること。</li>
+      </ul>
+      <h3>引き分け</h3>
+      <p>同じ形が4回くり返されると<strong>千日手</strong>で引き分けです(王手をかけ続けていた側は負け)。</p>
+      <button type="button" class="wide" data-close>とじる</button>
+    </dialog>
+
+    <!-- 棋譜 -->
+    <dialog id="kifu-dialog" class="modal" aria-labelledby="kifu-title">
+      <h2 id="kifu-title">棋譜</h2>
+      <ol id="kifu-list" class="kifu"></ol>
+      <p id="kifu-empty" class="muted" hidden>まだ指していません。</p>
+      <button type="button" class="wide" data-close>とじる</button>
+    </dialog>
+
+    <!-- 成るか成らないか -->
+    <dialog id="promote-dialog" class="modal small-modal" aria-labelledby="promote-title">
+      <form method="dialog">
+        <h2 id="promote-title">成りますか？</h2>
+        <div class="modal-actions">
+          <button value="yes" class="primary">成る</button>
+          <button value="no">成らない</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- はい / いいえ -->
+    <dialog id="confirm-dialog" class="modal small-modal" aria-labelledby="confirm-text">
+      <form method="dialog">
+        <p id="confirm-text" class="confirm-text"></p>
+        <div class="modal-actions">
+          <button value="yes" class="primary">はい</button>
+          <button value="no">いいえ</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 対局の結果 -->
+    <dialog id="result-dialog" class="modal small-modal" aria-labelledby="result-title">
+      <h2 id="result-title"></h2>
+      <p id="result-detail" class="muted"></p>
+      <p id="result-quote" class="quote" hidden></p>
+      <div class="modal-actions">
+        <button id="result-primary" type="button" class="primary"></button>
+        <button id="result-secondary" type="button"></button>
+      </div>
+    </dialog>
+
     <!-- インストール方法（最初の画面から開く） -->
-    <dialog id="install-dialog" class="install-dialog" aria-labelledby="install-title">
+    <dialog id="install-dialog" class="modal install-dialog" aria-labelledby="install-title">
       <h2 id="install-title">ホーム画面に追加して使う</h2>
       <p class="muted">インストールすると、ホーム画面から開けて、オフラインでも使えます。</p>
       <button id="install-now" type="button" class="primary" hidden>今すぐインストール</button>
@@ -73,7 +259,7 @@
         </ol>
       </details>
 
-      <button type="button" data-close>とじる</button>
+      <button type="button" class="wide" data-close>とじる</button>
     </dialog>
 
     <!-- 新しい版があるときに出る。押すと切り替わる -->

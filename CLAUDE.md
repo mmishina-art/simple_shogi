@@ -6,10 +6,10 @@ PWA アプリ(ツール/ゲーム)の共通テンプレート。**新しいア�
 
 ## このアプリの方針(新規作成時に記入)
 
-- アプリの概要:
-- 配色: (端末設定に従う / 明るい固定 / 暗い固定 のどれか。決めたら src/style.css と theme-color をそろえる)
-- 公開 URL:
-- 追加した拡張: (なし / UI フレームワーク / バックエンド など。理由も書く)
+- アプリの概要: 戦国時代を舞台にした、和風の将棋アプリ(CPU 対戦・ふたり対戦・ストーリーモード「葦原の乱」)。
+- 配色: **暗い固定**(墨色の地に、金と朱)。`src/style.css` の変数、`index.html` の `theme-color` / `color-scheme`、`vite.config.ts` の色をそろえている。
+- 公開 URL: https://mmishina-art.github.io/simple_shogi/
+- 追加した拡張: なし(UI フレームワークもバックエンドも入れていない。CPU は同じスレッドで、持ち時間つきの探索で動かす)
 
 ## 基本方針
 
@@ -39,8 +39,9 @@ Vite + TypeScript + vite-plugin-pwa + Vitest + Playwright + ESLint。UI フレ�
 
 ## 構成
 
-- `src/logic.ts`: ルール・計算。DOM に触れない純関数にして `tests/` で単体テストする。
-- `src/main.ts`: DOM の操作だけ。`src/sound.ts`(効果音)、`src/storage.ts`(保存)、`src/pwa.ts`(更新ボタン)、`src/install.ts`(インストール方法の説明)。
+- `src/shogi.ts`(ルール)、`src/game.ts`(対局の記録・終局判定)、`src/ai.ts`(CPU)、`src/story.ts`(物語のデータ): DOM に触れない純関数にして `tests/` で単体テストする。ルールを変えたら `tests/shogi.test.ts` の perft(合法手の数え上げ)が通ることを確認する。
+- `src/main.ts`(画面の切り替え)、`src/play.ts`(対局画面)、`src/scene.ts` / `src/portrait.ts`(会話シーン)、`src/pieces.ts`(駒の見た目): DOM の操作だけ。`src/sound.ts`(効果音)、`src/storage.ts`(保存)、`src/pwa.ts`(更新ボタン)、`src/install.ts`(インストール方法の説明)。
+- 保存キーは `simple-shogi-` で始まる(`game`: 途中の対局、`cleared`: 物語のクリア数、`sound`: 効果音)。**キー名は変えない。**
 - `vite.config.ts`: アプリ名・色・manifest。`index.html` の `theme-color`・タイトルと合わせて書き換える。
 - `scripts/check-dist.mjs`: ビルド成果物が PWA として成立しているかの検査。
 - 画面の部品や機能を足すときは、ファイルを `src/` に分ける。Service Worker のファイル一覧は**自動生成**なので手で更新しない。

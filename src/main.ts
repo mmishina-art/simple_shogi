@@ -1,71 +1,293 @@
 import './style.css';
-import { initialState, reset, tap } from './logic';
+import { type Game, type SavedMove, decodeMoves, describeResult, encodeMoves, gameFromMoves } from './game';
 import { setupInstallGuide } from './install';
+import { initPlay, startPlay } from './play';
 import { setupUpdateBanner } from './pwa';
-import { beep, isSoundOn, setSound } from './sound';
+import { runScene } from './scene';
+import type { Side } from './shogi';
+import { isSoundOn, playSound, setSound } from './sound';
 import { exportBackup, importBackup, load, migrateStorage, requestPersist, save } from './storage';
-
-const $ = <T extends HTMLElement>(id: string): T => {
-  const el = document.getElementById(id);
-  if (!el) throw new Error(`#${id} not found`);
-  return el as T;
-};
+import { CHAPTERS, ENDING, type Chapter, chapterLabel, characterOf } from './story';
+import { byId } from './ui';
 
 migrateStorage();
-let state = initialState(load('best', 0));
 
-function render(): void {
-  $('count').textContent = String(state.count);
-  $('best').textContent = String(state.best);
-  const sound = $('sound-button');
-  sound.textContent = isSoundOn() ? '🔊' : '🔇';
-  sound.setAttribute('aria-pressed', String(isSoundOn()));
+type ScreenName = 'title' | 'story' | 'free' | 'game' | 'scene';
+
+interface Launch {
+  mode: 'cpu' | 'two';
+  level: number;
+  human: Side;
+  /** 物語の話の番号（1〜）。自由対局は 0 */
+  chapter: number;
 }
 
-$('tap-button').addEventListener('click', () => {
-  state = tap(state);
-  save('best', state.best);
-  beep();
-  render();
+interface SavedGame extends Launch {
+  moves: SavedMove[];
+}
+
+const FREE_LEVELS: Record<number, string> = { 2: 'やさしい', 4: 'ふつう', 6: 'つよい', 8: '達人' };
+/** ?debug=1 を付けて開くと、物語の全話が最初から選べる（確認用） */
+const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
+
+function show(name: ScreenName): void {
+  document.querySelectorAll<HTMLElement>('.screen').forEach((el) => {
+    el.hidden = el.id !== `screen-${name}`;
+  });
+  document.body.dataset.screen = name;
+  window.scrollTo(0, 0);
+}
+
+// ---- 保存 ----
+
+function loadSavedGame(): { launch: Launch; game: Game } | null {
+  const saved = load<SavedGame | null>('game', null);
+  if (!saved || typeof saved !== 'object') return null;
+  const moves = decodeMoves(saved.moves);
+  if (!moves || moves.length === 0) return null;
+  if ((saved.mode !== 'cpu' && saved.mode !== 'two') || (saved.human !== 0 && saved.human !== 1)) return null;
+  if (saved.chapter < 0 || saved.chapter > CHAPTERS.length || !Number.isInteger(saved.chapter)) return null;
+  const game = gameFromMoves(moves);
+  if (!game || game.result) return null;
+  return { launch: { mode: saved.mode, level: Number(saved.level) || 1, human: saved.human, chapter: saved.chapter }, game };
+}
+
+function persist(launch: Launch, game: Game): void {
+  if (game.result) save('game', null);
+  else save('game', { ...launch, moves: encodeMoves(game.moves) } satisfies SavedGame);
+}
+
+const clearedCount = (): number => Math.min(Math.max(Number(load('cleared', 0)) || 0, 0), CHAPTERS.length);
+
+function markCleared(chapter: number): void {
+  if (chapter > Number(load('cleared', 0))) save('cleared', chapter);
+}
+
+// ---- タイトル ----
+
+function showTitle(): void {
+  byId('menu-continue').hidden = loadSavedGame() === null;
+  show('title');
+}
+
+byId('menu-continue').addEventListener('click', () => {
+  playSound('tap');
+  const saved = loadSavedGame();
+  if (!saved) return showTitle();
+  void launch(saved.launch, saved.game);
 });
-$('reset-button').addEventListener('click', () => {
-  state = reset(state);
-  render();
+byId('menu-story').addEventListener('click', () => {
+  playSound('tap');
+  showStory();
 });
-$('sound-button').addEventListener('click', () => {
-  setSound(!isSoundOn());
-  render();
+byId('menu-free').addEventListener('click', () => {
+  playSound('tap');
+  show('free');
+});
+byId('menu-rules').addEventListener('click', () => byId<HTMLDialogElement>('rules-dialog').showModal());
+byId('menu-settings').addEventListener('click', () => byId<HTMLDialogElement>('settings-dialog').showModal());
+
+document.querySelectorAll<HTMLDialogElement>('dialog').forEach((dialog) => {
+  dialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => dialog.close()));
 });
 
-$('backup-export').addEventListener('click', () => {
+// ---- 物語 ----
+
+function showStory(): void {
+  const cleared = clearedCount();
+  const list = byId('chapter-list');
+  list.replaceChildren();
+  for (const chapter of CHAPTERS) {
+    const unlocked = DEBUG || chapter.id <= cleared + 1;
+    const li = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'chapter';
+    button.disabled = !unlocked;
+    const opponent = characterOf(chapter.opponent);
+    const parts: [string, string][] = [
+      ['ch-num', chapterLabel(chapter.id)],
+      ['ch-title', unlocked ? chapter.title : '？？？'],
+      ['ch-meta', unlocked ? `${opponent?.name ?? ''} ・ ${chapter.placeName}` : 'まだ開いていません'],
+      ['ch-state', chapter.id <= cleared ? '済' : unlocked ? '' : '🔒'],
+    ];
+    for (const [cls, text] of parts) {
+      const span = document.createElement('span');
+      span.className = cls;
+      span.textContent = text;
+      button.append(span);
+    }
+    if (chapter.id <= cleared) button.setAttribute('aria-label', `${chapterLabel(chapter.id)} ${chapter.title} クリア済み`);
+    button.addEventListener('click', () => void playChapter(chapter));
+    li.append(button);
+    list.append(li);
+  }
+  show('story');
+}
+
+async function playChapter(chapter: Chapter): Promise<void> {
+  playSound('tap');
+  show('scene');
+  await runScene(chapter.intro, chapter.place, chapter.placeName);
+  await launch({ mode: 'cpu', level: chapter.level, human: 0, chapter: chapter.id });
+}
+
+byId('story-back').addEventListener('click', showTitle);
+
+// ---- 自由対局 ----
+
+const freeForm = byId<HTMLFormElement>('free-form');
+const picked = (name: string): string => (freeForm.elements.namedItem(name) as RadioNodeList).value;
+
+freeForm.addEventListener('change', () => {
+  const two = picked('opponent') === 'two';
+  byId('free-level').hidden = two;
+  byId('free-side').hidden = two;
+});
+freeForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  playSound('tap');
+  if (picked('opponent') === 'two') {
+    void launch({ mode: 'two', level: 0, human: 0, chapter: 0 });
+    return;
+  }
+  const side = picked('side');
+  const human: Side = side === 'random' ? (Math.random() < 0.5 ? 0 : 1) : side === '1' ? 1 : 0;
+  void launch({ mode: 'cpu', level: Number(picked('level')), human, chapter: 0 });
+});
+byId('free-back').addEventListener('click', showTitle);
+
+// ---- 対局 ----
+
+function launch(config: Launch, resume?: Game): void {
+  const chapter = config.chapter > 0 ? CHAPTERS[config.chapter - 1] : null;
+  const opponentName = chapter ? (characterOf(chapter.opponent)?.name ?? 'CPU') : 'CPU';
+  const title = chapter
+    ? `${chapterLabel(chapter.id)} ${chapter.title}`
+    : config.mode === 'two'
+      ? 'ふたりで対局'
+      : `CPU対局(${FREE_LEVELS[config.level] ?? config.level})`;
+  show('game');
+  startPlay({
+    mode: config.mode,
+    level: config.level,
+    human: config.human,
+    title,
+    opponentName,
+    moves: resume?.moves,
+    onMove: (game) => persist(config, game),
+    onEnd: (game) => void onGameEnd(config, chapter, game),
+    onExit: showTitle,
+  });
+}
+
+async function onGameEnd(config: Launch, chapter: Chapter | null, game: Game): Promise<void> {
+  const result = game.result;
+  if (!result) return;
+  const human = config.mode === 'cpu' ? config.human : null;
+  const { title, detail } = describeResult(result, human);
+  const won = result.winner === config.human && config.mode === 'cpu';
+  if (chapter && won) markCleared(chapter.id);
+
+  byId('result-title').textContent = title;
+  byId('result-detail').textContent = detail;
+  const quote = byId('result-quote');
+  const primary = byId('result-primary');
+  const secondary = byId('result-secondary');
+  quote.hidden = true;
+
+  let again = 'もう一局';
+  let back = 'メニューへ';
+  if (chapter) {
+    back = '話の選択へ';
+    if (won) again = 'つづきを見る';
+    else {
+      again = 'もう一度';
+      const q = chapter.loseQuote;
+      quote.textContent = `${characterOf(q.who)?.name ?? ''}「${q.text}」`;
+      quote.hidden = false;
+    }
+  }
+  primary.textContent = again;
+  secondary.textContent = back;
+
+  const dialog = byId<HTMLDialogElement>('result-dialog');
+  const listeners = new AbortController();
+  const choice = await new Promise<'again' | 'back' | 'close'>((resolve) => {
+    const { signal } = listeners;
+    primary.addEventListener('click', () => resolve('again'), { signal });
+    secondary.addEventListener('click', () => resolve('back'), { signal });
+    dialog.addEventListener('close', () => resolve('close'), { signal });
+    dialog.showModal();
+  });
+  listeners.abort();
+  if (dialog.open) dialog.close();
+
+  if (choice === 'close') return; // 盤を見返す
+  if (chapter && won) {
+    if (choice === 'again') {
+      show('scene');
+      await runScene(chapter.win, chapter.place, chapter.placeName);
+      if (chapter.id === CHAPTERS.length) {
+        await runScene(ENDING, 'castle', '葦原城');
+      }
+    }
+    showStory();
+    return;
+  }
+  if (choice === 'again') void launch(config);
+  else if (chapter) showStory();
+  else showTitle();
+}
+
+// ---- せってい（効果音・バックアップ） ----
+
+function renderSound(): void {
+  document.querySelectorAll<HTMLElement>('.sound-toggle').forEach((el) => {
+    el.textContent = `${isSoundOn() ? '🔊' : '🔇'}${el.classList.contains('wide') ? ' 効果音' : ''}`;
+    el.setAttribute('aria-pressed', String(isSoundOn()));
+  });
+}
+document.querySelectorAll<HTMLElement>('.sound-toggle').forEach((el) =>
+  el.addEventListener('click', () => {
+    setSound(!isSoundOn());
+    playSound('tap');
+    renderSound();
+  }),
+);
+
+byId('backup-export').addEventListener('click', () => {
   const blob = new Blob([exportBackup()], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `pwa-app-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `simple-shogi-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
 });
-$<HTMLInputElement>('backup-import').addEventListener('change', async (e) => {
+byId<HTMLInputElement>('backup-import').addEventListener('change', async (e) => {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
-  const message = $('backup-message');
+  const message = byId('backup-message');
   try {
     const n = importBackup(await file.text());
-    state = initialState(load('best', 0));
-    render();
     message.textContent = `${n} 件の記録を読み込みました`;
+    showTitle();
   } catch (err) {
     message.textContent = err instanceof Error ? err.message : '読み込めませんでした';
   }
   input.value = '';
 });
 
-$('version').textContent = __APP_VERSION__;
+// ---- 起動 ----
+
+byId('version').textContent = __APP_VERSION__;
 requestPersist();
-setupUpdateBanner($('update-banner'), $('update-button'));
-setupInstallGuide($<HTMLButtonElement>('install-open'), $<HTMLDialogElement>('install-dialog'), $<HTMLButtonElement>('install-now'));
-render();
+setupUpdateBanner(byId('update-banner'), byId('update-button'));
+setupInstallGuide(byId<HTMLButtonElement>('install-open'), byId<HTMLDialogElement>('install-dialog'), byId<HTMLButtonElement>('install-now'));
+initPlay();
+renderSound();
+showTitle();
 
 // ここまで来たら起動成功（public/boot.js が見ている）
 window.__appStarted = true;

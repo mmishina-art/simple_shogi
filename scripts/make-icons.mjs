@@ -4,8 +4,23 @@
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const BG = [0x1f, 0x6f, 0xeb];
-const FG = [0xff, 0xff, 0xff];
+// 墨色の地に、金色の将棋の駒（五角形）と朱色の日の丸
+const BG = [0x16, 0x11, 0x0d];
+const FG = [0xd2, 0xac, 0x62];
+const SUN = [0xa8, 0x2f, 0x24];
+// 駒の形（中心が原点、一辺を 1 としたときの座標。y は下向き）
+const PIECE = [[0, -0.5], [0.36, -0.2], [0.46, 0.5], [-0.46, 0.5], [-0.36, -0.2]];
+const SUN_AT = { x: 0, y: 0.14, r: 0.17 };
+
+function inPolygon(px, py, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
 
 function crc32(buf) {
   let c;
@@ -32,7 +47,7 @@ function chunk(type, data) {
 function png(size, figure, fullBleed) {
   const raw = Buffer.alloc(size * (size * 4 + 1));
   const c = size / 2;
-  const half = (size * figure) / 2;
+  const unit = size * figure;
   const radius = size * 0.22;
   for (let y = 0; y < size; y++) {
     const row = y * (size * 4 + 1);
@@ -42,9 +57,12 @@ function png(size, figure, fullBleed) {
       const dx = Math.max(Math.abs(x - c) - (c - radius), 0);
       const dy = Math.max(Math.abs(y - c) - (c - radius), 0);
       const inBg = fullBleed || dx * dx + dy * dy <= radius * radius;
-      // 図柄: 中央の丸
-      const inFg = (x - c) ** 2 + (y - c) ** 2 <= (half * 0.8) ** 2;
-      const px = inFg ? FG : BG;
+      // 図柄: 中央の駒と、その中の日の丸
+      const ux = (x - c) / unit;
+      const uy = (y - c) / unit;
+      const inFg = inPolygon(ux, uy, PIECE);
+      const inSun = (ux - SUN_AT.x) ** 2 + (uy - SUN_AT.y) ** 2 <= SUN_AT.r ** 2;
+      const px = inSun ? SUN : inFg ? FG : BG;
       const o = row + 1 + x * 4;
       raw[o] = px[0];
       raw[o + 1] = px[1];
@@ -76,8 +94,11 @@ const files = {
 };
 for (const [name, data] of Object.entries(files)) writeFileSync(new URL(name, out), data);
 
+const u = 512 * 0.7;
+const points = PIECE.map(([x, y]) => `${(256 + x * u).toFixed(1)},${(256 + y * u).toFixed(1)}`).join(' ');
+const hex = (rgb) => `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 writeFileSync(
   new URL('icon.svg', out),
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#1f6feb"/><circle cx="256" cy="256" r="143" fill="#fff"/></svg>\n`,
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${hex(BG)}"/><polygon points="${points}" fill="${hex(FG)}"/><circle cx="${256 + SUN_AT.x * u}" cy="${(256 + SUN_AT.y * u).toFixed(1)}" r="${(SUN_AT.r * u).toFixed(1)}" fill="${hex(SUN)}"/></svg>\n`,
 );
 console.log('icons generated:', [...Object.keys(files), 'icon.svg'].join(', '));
