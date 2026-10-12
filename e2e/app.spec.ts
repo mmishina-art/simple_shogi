@@ -28,6 +28,117 @@ async function startTwoPlayers(page: Page): Promise<void> {
   await expect(page.locator('#screen-game')).toBeVisible();
 }
 
+/** どの BGM が選ばれたかを、app:music イベントで記録する */
+async function recordMusic(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __tracks: string[] };
+    w.__tracks = [];
+    document.addEventListener('app:music', (e) => w.__tracks.push(String((e as CustomEvent).detail.track)));
+  });
+}
+const tracks = (page: Page): Promise<string[]> => page.evaluate(() => (window as unknown as { __tracks: string[] }).__tracks);
+
+test('画面ごとに BGM が切り替わる（タイトル → 話の選択 → 会話 → 対局）', async ({ page }) => {
+  await recordMusic(page);
+  await page.goto('/');
+  await expect.poll(() => tracks(page)).toEqual(['title']);
+  await page.getByRole('button', { name: /物語/ }).click();
+  await expect.poll(() => tracks(page)).toEqual(['title', 'map']);
+  await page.locator('.chapter').nth(0).click();
+  await expect.poll(() => tracks(page)).toEqual(['title', 'map', 'scene']);
+  await page.getByRole('button', { name: 'スキップ' }).click();
+  await expect.poll(() => tracks(page)).toEqual(['title', 'map', 'scene', 'game']);
+  await page.getByRole('button', { name: /もどる/ }).click();
+  await expect.poll(() => tracks(page)).toEqual(['title', 'map', 'scene', 'game', 'title']);
+});
+
+test('夜の会話は不穏な曲、第八話の対局は強敵の曲', async ({ page }) => {
+  await recordMusic(page);
+  await page.goto('/?debug=1');
+  await page.getByRole('button', { name: /物語/ }).click();
+  await page.locator('.chapter').nth(5).click(); // 第六話: 月夜の忍び
+  await expect.poll(() => tracks(page)).toContain('tension');
+  await page.getByRole('button', { name: 'スキップ' }).click();
+  await expect.poll(() => tracks(page)).toContain('game');
+  await page.getByRole('button', { name: /もどる/ }).click();
+  await page.getByRole('button', { name: /物語/ }).click();
+  await page.locator('.chapter').nth(7).click(); // 第八話
+  await page.getByRole('button', { name: 'スキップ' }).click();
+  expect((await tracks(page)).slice(-1)).toEqual(['boss']);
+});
+
+test('対局が終わると BGM が止まる（勝敗の音が聞こえるように）', async ({ page }) => {
+  await recordMusic(page);
+  await startTwoPlayers(page);
+  await expect.poll(() => tracks(page)).toContain('map');
+  await page.getByRole('button', { name: '投了' }).click();
+  await page.locator('#confirm-dialog').getByRole('button', { name: 'はい' }).click();
+  await expect.poll(async () => (await tracks(page)).slice(-1)[0]).toBe('null');
+});
+
+test('BGM は、せっていで切れて、設定が残る', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'せってい' }).click();
+  const toggle = page.locator('#settings-dialog .bgm-toggle');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await page.reload();
+  await page.getByRole('button', { name: 'せってい' }).click();
+  await expect(page.locator('#settings-dialog .bgm-toggle')).toHaveAttribute('aria-pressed', 'false');
+});
+
+test.describe('しゃべり声（文字が出るアニメーションを動かして確かめる）', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('人物が話しているときだけ声が鳴り、地の文では鳴らない', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      const w = window as unknown as { __voices: number[] };
+      w.__voices = [];
+      document.addEventListener('app:sound', (e) => {
+        const d = (e as CustomEvent).detail;
+        if (d.name === 'voice') w.__voices.push(d.frequency);
+      });
+    });
+    const voices = (): Promise<number[]> => page.evaluate(() => (window as unknown as { __voices: number[] }).__voices);
+    await page.getByRole('button', { name: /物語/ }).click();
+    await page.locator('.chapter').nth(0).click();
+    // 最初は地の文（ナレーション）: 文字が出きるまで待っても、声は鳴らない
+    await expect(page.locator('#scene-speaker')).toBeHidden();
+    await expect(page.locator('#scene-text')).toContainText('時は戦国');
+    await page.waitForTimeout(600);
+    expect(await voices()).toEqual([]);
+
+    // 人物（玄斎）の台詞まで進める
+    const box = page.locator('#scene-box');
+    for (let i = 0; i < 30 && (await page.locator('#scene-speaker').isHidden()); i++) await box.click();
+    await expect(page.locator('#scene-speaker')).toHaveText('伊吹 玄斎');
+    await expect.poll(async () => (await voices()).length, { timeout: 5000 }).toBeGreaterThan(2);
+    // 玄斎の声の高さ（基準 150Hz の 1〜2 倍）で鳴っている
+    for (const hz of await voices()) {
+      expect(hz).toBeGreaterThanOrEqual(150);
+      expect(hz).toBeLessThan(300);
+    }
+  });
+
+  test('効果音を切ると、声も鳴らない', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('simple-shogi-sound', 'false'));
+    await page.goto('/');
+    await page.evaluate(() => {
+      const w = window as unknown as { __voices: number };
+      w.__voices = 0;
+      document.addEventListener('app:sound', () => w.__voices++);
+    });
+    await page.getByRole('button', { name: /物語/ }).click();
+    await page.locator('.chapter').nth(0).click();
+    const box = page.locator('#scene-box');
+    for (let i = 0; i < 30 && (await page.locator('#scene-speaker').isHidden()); i++) await box.click();
+    await page.waitForTimeout(800);
+    expect(await page.evaluate(() => (window as unknown as { __voices: number }).__voices)).toBe(0);
+  });
+});
+
 test('最初の画面に、メニュー・バージョン・インストール方法の入口がある', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: /物語/ })).toBeVisible();

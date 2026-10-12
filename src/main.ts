@@ -1,6 +1,7 @@
 import './style.css';
 import { type Game, type SavedMove, decodeMoves, describeResult, encodeMoves, gameFromMoves } from './game';
 import { setupInstallGuide } from './install';
+import { isBgmOn, setBgm, setTrack, type TrackName } from './music';
 import { initPlay, startPlay } from './play';
 import { setupUpdateBanner } from './pwa';
 import { runScene } from './scene';
@@ -30,7 +31,14 @@ const FREE_LEVELS: Record<number, string> = { 2: 'やさしい', 4: 'ふつう',
 /** ?debug=1 を付けて開くと、物語の全話が最初から選べる（確認用） */
 const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 
+/** 画面ごとの BGM（対局と会話は、始めるときに別に決める） */
+const SCREEN_TRACK: Partial<Record<ScreenName, TrackName>> = { title: 'title', story: 'map', free: 'map' };
+/** 第七話・第八話の対局は、強敵の曲 */
+const BOSS_FROM = 7;
+
 function show(name: ScreenName): void {
+  const track = SCREEN_TRACK[name];
+  if (track) setTrack(track);
   document.querySelectorAll<HTMLElement>('.screen').forEach((el) => {
     el.hidden = el.id !== `screen-${name}`;
   });
@@ -168,6 +176,7 @@ function launch(config: Launch, resume?: Game): void {
       ? 'ふたりで対局'
       : `CPU対局(${FREE_LEVELS[config.level] ?? config.level})`;
   show('game');
+  setTrack(chapter && chapter.id >= BOSS_FROM ? 'boss' : 'game');
   startPlay({
     mode: config.mode,
     level: config.level,
@@ -244,10 +253,22 @@ async function onGameEnd(config: Launch, chapter: Chapter | null, game: Game): P
 
 function renderSound(): void {
   document.querySelectorAll<HTMLElement>('.sound-toggle').forEach((el) => {
-    el.textContent = `${isSoundOn() ? '🔊' : '🔇'}${el.classList.contains('wide') ? ' 効果音' : ''}`;
+    el.textContent = `${isSoundOn() ? '🔊' : '🔇'}${el.classList.contains('wide') ? ' 効果音・しゃべり声' : ''}`;
     el.setAttribute('aria-pressed', String(isSoundOn()));
   });
+  document.querySelectorAll<HTMLElement>('.bgm-toggle').forEach((el) => {
+    el.textContent = `🎵${el.classList.contains('wide') ? ' BGM' : ''}`;
+    el.classList.toggle('off', !isBgmOn());
+    el.setAttribute('aria-pressed', String(isBgmOn()));
+  });
 }
+document.querySelectorAll<HTMLElement>('.bgm-toggle').forEach((el) =>
+  el.addEventListener('click', () => {
+    setBgm(!isBgmOn());
+    playSound('tap');
+    renderSound();
+  }),
+);
 document.querySelectorAll<HTMLElement>('.sound-toggle').forEach((el) =>
   el.addEventListener('click', () => {
     setSound(!isSoundOn());

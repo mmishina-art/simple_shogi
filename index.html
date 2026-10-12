@@ -96,7 +96,10 @@
         <header class="bar">
           <button id="game-back" type="button" class="bar-button" aria-label="メニューにもどる(対局は自動で保存されます)">← もどる</button>
           <h2 id="game-title" class="bar-title"></h2>
-          <button type="button" class="bar-button sound-toggle" aria-label="効果音" aria-pressed="true">🔊</button>
+          <span class="bar-tools">
+            <button type="button" class="bar-button bgm-toggle" aria-label="BGM" aria-pressed="true">🎵</button>
+            <button type="button" class="bar-button sound-toggle" aria-label="効果音" aria-pressed="true">🔊</button>
+          </span>
         </header>
 
         <div class="player" id="panel-top">
@@ -145,7 +148,8 @@
     <dialog id="settings-dialog" class="modal" aria-labelledby="settings-title">
       <h2 id="settings-title">せってい</h2>
       <p>
-        <button type="button" class="sound-toggle wide" aria-pressed="true">🔊 効果音</button>
+        <button type="button" class="bgm-toggle wide" aria-pressed="true">🎵 BGM</button>
+        <button type="button" class="sound-toggle wide" aria-pressed="true">🔊 効果音・しゃべり声</button>
       </p>
       <h3>記録のバックアップ</h3>
       <p class="muted small">記録は、このブラウザの中にだけ保存されています。ファイルに残しておくと、消えたときに戻せます。</p>
