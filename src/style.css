@@ -505,9 +505,9 @@ legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px 8px;
-  min-height: 48px;
-  padding: 2px 8px;
+  gap: 4px 10px;
+  min-height: 56px;
+  padding: 6px 8px;
   border-left: 3px solid transparent;
   border-radius: 6px;
 }
@@ -602,7 +602,26 @@ legend {
 }
 
 .board-wrap {
-  margin: 4px 0;
+  margin: 8px 0;
+}
+
+/* 相手のパネルの、顔の絵（丸みのある枠。色は .portrait の data-tone） */
+.portrait.avatar {
+  flex: none;
+  align-self: center;
+  width: 52px;
+  height: 64px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid var(--gold-soft);
+  border-radius: 12px;
+}
+
+.portrait.avatar svg {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  filter: none;
 }
 
 .file-labels,
@@ -1196,6 +1215,24 @@ legend {
 .boot-error small {
   display: block;
   color: var(--muted);
+}
+
+/* 背の低い画面（iPhone SE など）では、顔の絵と余白を小さくして、盤・手駒・ボタンを 1 画面に収める */
+@media (max-height: 700px) {
+  .player {
+    min-height: 48px;
+    padding: 3px 8px;
+  }
+
+  .board-wrap {
+    margin: 4px 0;
+  }
+
+  .portrait.avatar {
+    width: 40px;
+    height: 48px;
+    border-radius: 9px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
