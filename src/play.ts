@@ -5,9 +5,10 @@ import { type Game, type Result, describeResult, newGame, gameFromMoves, playMov
 import { setTrack } from './music';
 import { voiceFrequency } from './music-data';
 import { pieceElement } from './pieces';
-import { BISHOP, GOLD, KNIGHT, LANCE, PAWN, ROOK, SILVER, SQUARES, type Move, type Side, cellKind, cellSide, findKing, isInCheck, legalMoves } from './shogi';
+import { portraitSvg } from './portrait';
+import { BISHOP, GOLD, KING, KNIGHT, LANCE, PAWN, ROOK, SILVER, SQUARES, type Move, type Side, cellKind, cellSide, findKing, isInCheck, legalMoves } from './shogi';
 import { playSound, playVoice } from './sound';
-import type { Talk } from './story-types';
+import type { Art, Talk } from './story-types';
 import { MIN_GAP, chooseTalk } from './talk';
 import { askDialog, byId } from './ui';
 
@@ -22,6 +23,10 @@ export interface PlayConfig {
   opponentName: string;
   /** 対戦相手が、対局中に話すセリフ（物語の対局だけ） */
   talk?: Talk;
+  /** 対戦相手の顔の絵と色（物語の対局だけ。相手のパネルに出す） */
+  opponentFace?: { art: Art; tone: number };
+  /** 自分（その編の主人公）の顔の絵と色。物語の対局だけ。ないときは、自分の側の玉を出す */
+  playerFace?: { art: Art; tone: number };
   /** 対戦相手のしゃべり声の高さ(Hz) */
   opponentVoice?: number;
   /** 途中から再開するときの指し手 */
@@ -77,6 +82,28 @@ export function initPlay(): void {
   });
 }
 
+/** 相手のパネルに、顔の絵を出す（顔がない対局では隠す） */
+function showAvatar(opponent: PlayConfig['opponentFace'], player: PlayConfig['playerFace']): void {
+  const fill = (el: HTMLElement, face: PlayConfig['opponentFace'], suffix: string): void => {
+    el.dataset.tone = String(face!.tone);
+    const svg = portraitSvg(face!.art, suffix);
+    svg.setAttribute('viewBox', '24 -6 112 138'); // 顔まわりだけを切り出す
+    el.append(svg);
+  };
+  const top = byId('avatar-top');
+  top.replaceChildren();
+  top.hidden = !opponent;
+  // 自分のパネルにも同じ大きさの枠を置いて、2 つのパネルをそろえる
+  // （物語では、その編の主人公の顔。ほかの対局では、自分の側の玉）
+  const self = byId('avatar-bottom');
+  self.replaceChildren();
+  self.hidden = !opponent;
+  if (!opponent) return;
+  fill(top, opponent, '-chip');
+  if (player) fill(self, player, '-me');
+  else if (cfg.mode === 'cpu') self.append(pieceElement(KING, cfg.human, false));
+}
+
 /** CPU の思考や待ち時間を止める（画面を離れるとき） */
 export function stopPlay(): void {
   token++;
@@ -97,6 +124,7 @@ export function startPlay(config: PlayConfig): void {
   buildLabels();
   clearSpeech();
   byId('opp-speech').hidden = !config.talk;
+  showAvatar(config.opponentFace, config.playerFace);
   refresh();
   // 新しい対局のはじめに、対戦相手がひとこと話す
   if (config.talk && game.moves.length === 0) {
@@ -213,7 +241,7 @@ function render(): void {
   byId('panel-bottom').classList.toggle('active', !game.result && turn === view);
   byId('panel-top').classList.toggle('active', !game.result && turn !== view);
 
-  byId('status').textContent = statusText(checkSq >= 0);
+  renderStatus(checkSq >= 0);
   (byId('btn-undo') as HTMLButtonElement).disabled = !canUndo();
   (byId('btn-resign') as HTMLButtonElement).disabled = !!game.result || thinking;
   (byId('btn-kifu') as HTMLButtonElement).disabled = game.moves.length === 0;
@@ -257,15 +285,25 @@ function renderHand(where: 'top' | 'bottom', side: Side): void {
   }
 }
 
-function statusText(inCheck: boolean): string {
+/**
+ * 状態の表示。見えるのは「最後の手・王手・考え中・結果」だけ。
+ * 「だれの番か」は、手番のパネルの目印（◀ 手番）で分かるので、画面には出さず、読み上げ用に隠して入れる。
+ */
+function renderStatus(inCheck: boolean): void {
+  const status = byId('status');
   if (game.result) {
     const { title, detail } = describeResult(game.result, cfg.mode === 'cpu' ? cfg.human : null);
-    return `${title} ${detail}`;
+    status.textContent = `${title} ${detail}`;
+    return;
   }
-  const last = game.notes.length > 0 ? `${game.notes[game.notes.length - 1]} ／ ` : '';
-  const check = inCheck ? '王手！ ' : '';
-  if (cfg.mode === 'cpu') return `${last}${check}${thinking ? `${cfg.opponentName}が考えています…` : game.pos.turn === cfg.human ? 'あなたの番です' : ''}`;
-  return `${last}${check}${sideName(game.pos.turn)}の番です`;
+  const last = game.notes.length > 0 ? game.notes[game.notes.length - 1] : '';
+  const thinkingText = cfg.mode === 'cpu' && thinking ? `${cfg.opponentName}が考えています…` : '';
+  const visible = [last, inCheck ? '王手！' : '', thinkingText].filter(Boolean).join(' ／ ');
+  const turn = cfg.mode === 'cpu' ? (game.pos.turn === cfg.human ? 'あなたの番です' : '') : `${sideName(game.pos.turn)}の番です`;
+  const hidden = document.createElement('span');
+  hidden.className = 'sr-only';
+  hidden.textContent = turn ? ` ${turn}` : '';
+  status.replaceChildren(visible, hidden);
 }
 
 // ---- 操作 ----

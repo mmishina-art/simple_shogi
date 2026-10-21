@@ -219,7 +219,8 @@ function extras(art: Art): string {
 }
 
 /** 人物の絵（SVG）。色は CSS（.portrait の data-tone）で決まる。 */
-export function portraitSvg(art: Art): SVGSVGElement {
+/** idSuffix: 同じ画面に 2 つ以上の絵を出すとき、フィルターの id が重ならないようにする */
+export function portraitSvg(art: Art, idSuffix = ''): SVGSVGElement {
   const hair = art.hair === 'white' ? 'white' : '';
   const extra = art.extras ?? [];
   const facePath = FACE_PATH[art.face ?? 'round'];
@@ -236,10 +237,10 @@ export function portraitSvg(art: Art): SVGSVGElement {
   const markup =
     `<svg xmlns="${NS}" viewBox="0 -16 160 216" aria-hidden="true" focusable="false">` +
     // 筆で描いたような、わずかなゆがみ
-    '<defs><filter id="wobble" x="-4%" y="-4%" width="108%" height="108%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/></filter></defs>' +
+    `<defs><filter id="wobble${idSuffix}" x="-4%" y="-4%" width="108%" height="108%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/></filter></defs>` +
     // 背景: 大きな日輪と、墨でひとなでした輪
     '<circle class="p-halo" cx="80" cy="88" r="66"/><path class="p-brush" d="M22 96 A60 60 0 1 1 42 142"/>' +
-    '<g filter="url(#wobble)">' +
+    `<g filter="url(#wobble${idSuffix})">` +
     (art.banner ? banner(art.banner) : '') +
     behind +
     body(art) +

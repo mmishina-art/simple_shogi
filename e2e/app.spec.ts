@@ -390,11 +390,16 @@ test('物語の対局では、対戦相手が史実にそったセリフを話�
   await expect(speech).toBeVisible();
   await expect(speech).toContainText('織田信勝');
   await expect(speech).toContainText('大うつけ'); // 最初のひとこと
+  await expect(page.locator('#avatar-top svg')).toBeVisible(); // 相手の顔の絵
+  await expect(page.locator('#avatar-bottom svg')).toBeVisible(); // 自分は、その編の主人公（信長編なので信長）の顔の絵
+  await expect(page.locator('#status .sr-only')).toHaveText(/あなたの番です/); // 「だれの番か」は、読み上げ用に隠して持つ
   await page.getByRole('button', { name: /もどる/ }).click();
   await page.getByRole('button', { name: '自由対局' }).click();
   await page.getByRole('button', { name: '対局開始' }).click();
   await expect(page.locator('#screen-game')).toBeVisible();
   await expect(page.locator('#opp-speech')).toBeHidden();
+  await expect(page.locator('#avatar-top')).toBeHidden(); // 自由対局には、顔の絵がない
+  await expect(page.locator('#avatar-bottom')).toBeHidden();
 });
 
 test('対戦中に、王手をかけられると、相手がセリフで反応する', async ({ page }) => {
