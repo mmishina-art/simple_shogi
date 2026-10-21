@@ -523,14 +523,16 @@ legend {
 
 #panel-top .hand-piece,
 #panel-bottom .hand-piece {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
 }
 
 .player-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
+  /* 高さを固定する: 「考えています…」などの文字が出入りしても、盤がずれないように */
+  height: 28px;
 }
 
 .player.active {
@@ -539,7 +541,9 @@ legend {
 }
 
 .player-name {
+  flex: none;
   margin: 0;
+  white-space: nowrap;
   font-family: var(--serif);
   font-weight: 700;
 }
@@ -552,6 +556,8 @@ legend {
 }
 
 .hand {
+  /* 持ち駒が 0 枚でも 1 枚でも、同じ高さにする（取ったときに盤がずれないように） */
+  min-height: 44px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -632,7 +638,7 @@ legend {
 .board-wrap {
   position: relative;
   /* 盤は、画面の左右の余白いっぱいまで広げる（main の左右の余白 12px を打ち消す） */
-  margin: 6px -12px;
+  margin: 10px -12px 14px;
 }
 
 /* 相手のパネルの、顔の絵（丸みのある枠。色は .portrait の data-tone） */
@@ -817,7 +823,7 @@ legend {
 
 .controls {
   display: flex;
-  margin-top: 6px;
+  margin-top: 10px;
   justify-content: center;
   gap: 6px;
 }
@@ -1266,12 +1272,30 @@ legend {
 /* 背の低い画面（iPhone SE など）では、顔の絵と余白を小さくして、盤・手駒・ボタンを 1 画面に収める */
 @media (max-height: 700px) {
   .player {
-    min-height: 48px;
+    min-height: 44px;
     padding: 3px 8px;
   }
 
+  .player-head {
+    height: 22px;
+  }
+
+  .hand {
+    min-height: 34px;
+  }
+
+  #panel-top .hand-piece,
+  #panel-bottom .hand-piece {
+    width: 34px;
+    height: 34px;
+  }
+
   .board-wrap {
-    margin-block: 4px;
+    margin: 4px -12px 6px;
+  }
+
+  .controls {
+    margin-top: 6px;
   }
 
   .portrait.avatar {

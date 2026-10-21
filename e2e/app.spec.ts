@@ -225,6 +225,22 @@ test.describe('駒のアニメーション（動かして確かめる）', () =>
   });
 });
 
+test('CPU が考えている間も、盤の位置がずれない（文字が出入りしても、画面が動かない）', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /物語/ }).click();
+  await page.locator('.chapter').nth(0).click();
+  await page.getByRole('button', { name: 'スキップ' }).click();
+  await expect(page.locator('#screen-game')).toBeVisible();
+  const boardTop = () => page.locator('#board').evaluate((el) => Math.round(el.getBoundingClientRect().top));
+  const before = await boardTop();
+  await cell(page, 7, 7).click();
+  await cell(page, 7, 6).click();
+  await expect(page.locator('#status')).toContainText('考えています');
+  expect(await boardTop()).toBe(before);
+  await expect(page.locator('#status')).toContainText('あなたの番です', { timeout: 10_000 });
+  expect(await boardTop()).toBe(before);
+});
+
 test('動けない駒・相手の駒を選んでも、何も起きない', async ({ page }) => {
   await startTwoPlayers(page);
   await cell(page, 8, 9).click(); // 桂は、動ける場所がない
