@@ -89,6 +89,18 @@ body[data-screen='title'] {
   background-size: 64px 32px;
 }
 
+/* 対局中は、画面をドラッグしても動かさない（スクロールバーが出なくても、ゴムのように引っぱれてしまうため）。
+   指 1 本のドラッグ（パン）は止めるが、ピンチ拡大は許可する（touch-action: pinch-zoom）。
+   盤のタップ・ダイアログの中のスクロールは、そのまま使える。 */
+body[data-screen='game'] {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pinch-zoom;
+}
+
 main {
   max-width: 480px;
   margin: 0 auto;
@@ -871,6 +883,7 @@ legend {
   width: min(448px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
+  touch-action: pan-y pinch-zoom;
   padding: 16px;
   background: var(--surface);
   color: var(--text);

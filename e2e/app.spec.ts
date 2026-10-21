@@ -256,6 +256,24 @@ for (const [name, size] of [['標準のスマホ', { width: 412, height: 915 }],
   });
 }
 
+test('対局中は、画面をドラッグしても動かない（ピンチ拡大は許可、ほかの画面は動かせる）', async ({ page }) => {
+  await page.goto('/');
+  const style = () => page.evaluate(() => { const s = getComputedStyle(document.body); return { position: s.position, overflow: s.overflow, touchAction: s.touchAction }; });
+  expect((await style()).position).not.toBe('fixed'); // タイトルなどは、今までどおり
+  await page.getByRole('button', { name: '自由対局' }).click();
+  await page.getByText('ふたりで', { exact: true }).click();
+  await page.getByRole('button', { name: '対局開始' }).click();
+  await expect(page.locator('#screen-game')).toBeVisible();
+  const game = await style();
+  expect(game.position).toBe('fixed');
+  expect(game.overflow).toBe('hidden');
+  expect(game.touchAction).toBe('pinch-zoom'); // 指 1 本のドラッグは止め、ピンチ拡大は許可する
+  // 対局を出れば、画面は元どおり動かせる
+  await page.getByRole('button', { name: /もどる/ }).click();
+  await expect(page.locator('#screen-game')).toBeHidden();
+  expect((await style()).position).not.toBe('fixed');
+});
+
 test('動けない駒・相手の駒を選んでも、何も起きない', async ({ page }) => {
   await startTwoPlayers(page);
   await cell(page, 8, 9).click(); // 桂は、動ける場所がない
