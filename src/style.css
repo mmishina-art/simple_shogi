@@ -603,6 +603,36 @@ legend {
   text-align: center;
 }
 
+/* 対局中は、画面をスクロールさせない: 画面の高さにぴったり収め、余った高さ（または足りない高さ）は盤の大きさで調整する。
+   盤は、幅・高さの小さいほうに合わせた正方形にする（背の低い端末では、盤が少し小さくなる）。 */
+#screen-game {
+  height: calc(100dvh - max(10px, var(--safe-top)) - max(16px, env(safe-area-inset-bottom)));
+  min-height: 0;
+}
+
+#screen-game .board-wrap {
+  --side: min(calc(100cqw - 14px), calc(100cqh - 20px)); /* 盤の一辺（段の数字の列 14px、筋の数字の行 20px を除く） */
+  --gutter: max(0px, calc((100cqw - var(--side) - 14px) / 2));
+  flex: 1;
+  min-height: 0;
+  container-type: size;
+  /* 余った高さは、盤の上下に半分ずつ配る */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#screen-game .file-labels {
+  width: var(--side);
+  margin-right: 0;
+  margin-left: var(--gutter);
+}
+
+#screen-game .board-row {
+  width: calc(var(--side) + 14px);
+  margin-left: var(--gutter);
+}
+
 /* 対戦相手のセリフ。出たり消えたりしても盤がずれないよう、場所は空けておく */
 .opp-speech {
   position: absolute;
