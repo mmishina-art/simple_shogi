@@ -35,6 +35,7 @@
   --promoted-ink: #b3261b;
   --sel: rgb(255 245 170 / 0.75);
   --last: rgb(214 150 30 / 0.45);
+  --last-from: rgb(214 150 30 / 0.2);
   --dest: rgb(30 96 60 / 0.7);
   --check: rgb(200 50 36 / 0.55);
   --check-ring: #a4170c;
@@ -674,6 +675,15 @@ legend {
 
 .cell.last {
   background: var(--last);
+}
+
+.cell.last-from {
+  background: var(--last-from);
+  box-shadow: inset 0 0 0 2px var(--last);
+}
+
+.cell.last-to {
+  box-shadow: inset 0 0 0 3px var(--gold);
 }
 
 .cell.sel {

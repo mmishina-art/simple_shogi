@@ -195,6 +195,8 @@ function render(): void {
     cell.classList.toggle('dest', destSet.has(sq));
     cell.classList.toggle('cap', destSet.has(sq) && piece !== null);
     cell.classList.toggle('last', !!last && (last.to === sq || last.from === sq));
+    cell.classList.toggle('last-from', !!last && last.from === sq);
+    cell.classList.toggle('last-to', !!last && last.to === sq);
     cell.classList.toggle('check', sq === checkSq);
     const name = piece ? `${pieceName(piece.kind, piece.side)}(${sideName(piece.side)})` : '空き';
     cell.setAttribute('aria-label', `${squareName(sq)} ${name}${destSet.has(sq) ? ' 動かせる' : ''}`);
@@ -231,6 +233,7 @@ function renderHand(where: 'top' | 'bottom', side: Side): void {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'hand-piece';
+    b.dataset.kind = String(kind);
     b.disabled = !interactive;
     const selected = selection?.kind === 'hand' && selection.piece === kind && interactive;
     b.classList.toggle('sel', selected);
@@ -307,6 +310,7 @@ async function choose(candidates: Move[]): Promise<void> {
 function commit(move: Move): void {
   const captured = move.from >= 0 && game.pos.board[move.to] !== 0;
   const mover = game.pos.turn;
+  const before = snapshotForSlide(move);
   game = playMove(game, move);
   selection = null;
   thinking = false;
@@ -314,11 +318,66 @@ function commit(move: Move): void {
   playSound(move.promote ? 'promote' : captured ? 'capture' : 'move');
   if (last && !game.result) window.setTimeout(() => playSound('check'), 160);
   refresh();
+  slidePiece(move, before);
   cfg.onMove(game);
   if (game.result) finish(game.result);
   else {
     react(mover, captured, last);
     maybeCpu();
+  }
+}
+
+interface SlideStart {
+  /** 動かす駒が、動く前にいた場所（盤のマス、または持ち駒） */
+  from: DOMRect | null;
+  /** 取られる駒の見た目（取る手のとき） */
+  victim: Element | null;
+}
+
+const SLIDE_MS = 260;
+const reducedMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** 動かす前に、駒の元の位置と、取られる駒の見た目を控えておく */
+function snapshotForSlide(move: Move): SlideStart {
+  const where = game.pos.turn === viewSide() ? 'bottom' : 'top';
+  const button = document.querySelector(`#hand-${where} .hand-piece[data-kind="${move.kind}"]`);
+  const from = (move.from >= 0 ? cells[sqAt(move.from)] : (button ?? byId(`hand-${where}`))).getBoundingClientRect();
+  const victim = move.from >= 0 ? cells[sqAt(move.to)].querySelector('.piece')?.cloneNode(true) : null;
+  return { from, victim: (victim as Element | null) ?? null };
+}
+
+/** 動かした駒を、元の場所からすべらせる。取られた駒は、その場でうすれて消える */
+function slidePiece(move: Move, start: SlideStart): void {
+  if (reducedMotion() || !start.from) return;
+  const toCell = cells[sqAt(move.to)];
+  const el = toCell.querySelector<HTMLElement>('.piece');
+  if (!el || typeof el.animate !== 'function') return;
+  const to = toCell.getBoundingClientRect();
+  const dx = start.from.left + start.from.width / 2 - (to.left + to.width / 2);
+  const dy = start.from.top + start.from.height / 2 - (to.top + to.height / 2);
+  const rotate = el.classList.contains('flip') ? ' rotate(180deg)' : '';
+  // すべっている間は、ほかのマスの駒より手前に出す
+  toCell.style.zIndex = '5';
+  el.style.zIndex = '2';
+  const slide = el.animate([{ transform: `translate(${dx}px, ${dy}px)${rotate}` }, { transform: `translate(0, 0)${rotate}` }], {
+    duration: SLIDE_MS,
+    easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)',
+  });
+  slide.finished.then(
+    () => {
+      toCell.style.zIndex = '';
+      el.style.zIndex = '';
+    },
+    () => undefined,
+  );
+  if (start.victim) {
+    const ghost = start.victim as HTMLElement;
+    ghost.style.zIndex = '1';
+    toCell.append(ghost);
+    ghost.animate([{ opacity: 1, transform: ghost.classList.contains('flip') ? 'rotate(180deg)' : 'none' }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: SLIDE_MS + 140 }).finished.then(
+      () => ghost.remove(),
+      () => ghost.remove(),
+    );
   }
 }
 

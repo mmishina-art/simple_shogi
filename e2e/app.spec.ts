@@ -192,6 +192,39 @@ test('ふたり対戦: 駒を選ぶと動かせるマスが示され、動かす
   await expect(page.locator('#kifu-list li')).toHaveText(['▲７六歩']);
 });
 
+test('動かしたマスと元のマスが区別でき、駒の移動が分かる', async ({ page }) => {
+  await startTwoPlayers(page);
+  await cell(page, 7, 7).click();
+  await cell(page, 7, 6).click();
+  await expect(cell(page, 7, 7)).toHaveClass(/last-from/);
+  await expect(cell(page, 7, 6)).toHaveClass(/last-to/);
+  await expect(cell(page, 7, 6)).not.toHaveClass(/last-from/);
+});
+
+test.describe('駒のアニメーション（動かして確かめる）', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('駒は元のマスからすべり、取られた駒はその場でうすれて消える', async ({ page }) => {
+    await startTwoPlayers(page);
+    await page.evaluate(() => {
+      const w = window as unknown as { __slides: { dx: string }[] };
+      w.__slides = [];
+      const original = Element.prototype.animate;
+      Element.prototype.animate = function (keyframes, options) {
+        const frames = keyframes as Keyframe[];
+        if (frames.length === 2 && typeof frames[0].transform === 'string') w.__slides.push({ dx: frames[0].transform });
+        return original.call(this, keyframes, options);
+      };
+    });
+    await cell(page, 7, 7).click();
+    await cell(page, 7, 6).click();
+    const slides = await page.evaluate(() => (window as unknown as { __slides: { dx: string }[] }).__slides);
+    expect(slides).toHaveLength(1);
+    // 7七 → 7六 は、まっすぐ上へ 1 マス（横のずれはなく、縦に動く）
+    expect(slides[0].dx).toMatch(/^translate\(0px, [0-9.]+px\)/);
+  });
+});
+
 test('動けない駒・相手の駒を選んでも、何も起きない', async ({ page }) => {
   await startTwoPlayers(page);
   await cell(page, 8, 9).click(); // 桂は、動ける場所がない
