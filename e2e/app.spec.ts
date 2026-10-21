@@ -241,6 +241,21 @@ test('CPU が考えている間も、盤の位置がずれない（文字が出�
   expect(await boardTop()).toBe(before);
 });
 
+for (const [name, size] of [['標準のスマホ', { width: 412, height: 915 }], ['iPhone SE の大きさ', { width: 320, height: 568 }], ['背の低い画面', { width: 390, height: 600 }]] as const) {
+  test(`対局中は、画面がスクロールせず、盤・手駒・ボタンが 1 画面に収まる（${name}）`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await startTwoPlayers(page);
+    const overflow = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
+    expect(overflow).toBeLessThanOrEqual(0);
+    const bottom = await page.locator('#btn-resign').evaluate((el) => Math.round(el.getBoundingClientRect().bottom));
+    expect(bottom).toBeLessThanOrEqual(size.height);
+    // 盤は正方形で、9 マスが画面の幅に収まる
+    const box = await page.locator('#board').boundingBox();
+    expect(Math.abs(box!.width - box!.height)).toBeLessThan(2);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(size.width);
+  });
+}
+
 test('動けない駒・相手の駒を選んでも、何も起きない', async ({ page }) => {
   await startTwoPlayers(page);
   await cell(page, 8, 9).click(); // 桂は、動ける場所がない
