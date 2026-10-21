@@ -261,6 +261,8 @@ function launch(config: Launch, resume?: Game): void {
   const chapter = config.chapter > 0 ? CHAPTERS[config.chapter - 1] : null;
   const opponent = chapter ? characterOf(chapter.opponent) : undefined;
   const opponentName = opponent?.name ?? 'CPU';
+  // その編の主人公（編の id は、人物の id と同じ：信長・秀吉・家康）
+  const hero = chapter ? characterOf(arcOf(chapter).id) : undefined;
   const title = chapter
     ? `${arcOf(chapter).short}${chapterLabel(chapter.no)}`
     : config.mode === 'two'
@@ -275,6 +277,7 @@ function launch(config: Launch, resume?: Game): void {
     title,
     opponentName,
     talk: chapter?.talk,
+    playerFace: hero ? { art: hero.art, tone: hero.tone } : undefined,
     opponentFace: opponent ? { art: opponent.art, tone: opponent.tone } : undefined,
     opponentVoice: opponent?.voice,
     moves: resume?.moves,

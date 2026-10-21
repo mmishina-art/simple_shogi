@@ -6,7 +6,7 @@ import { setTrack } from './music';
 import { voiceFrequency } from './music-data';
 import { pieceElement } from './pieces';
 import { portraitSvg } from './portrait';
-import { BISHOP, GOLD, KNIGHT, LANCE, PAWN, ROOK, SILVER, SQUARES, type Move, type Side, cellKind, cellSide, findKing, isInCheck, legalMoves } from './shogi';
+import { BISHOP, GOLD, KING, KNIGHT, LANCE, PAWN, ROOK, SILVER, SQUARES, type Move, type Side, cellKind, cellSide, findKing, isInCheck, legalMoves } from './shogi';
 import { playSound, playVoice } from './sound';
 import type { Art, Talk } from './story-types';
 import { MIN_GAP, chooseTalk } from './talk';
@@ -25,6 +25,8 @@ export interface PlayConfig {
   talk?: Talk;
   /** 対戦相手の顔の絵と色（物語の対局だけ。相手のパネルに出す） */
   opponentFace?: { art: Art; tone: number };
+  /** 自分（その編の主人公）の顔の絵と色。物語の対局だけ。ないときは、自分の側の玉を出す */
+  playerFace?: { art: Art; tone: number };
   /** 対戦相手のしゃべり声の高さ(Hz) */
   opponentVoice?: number;
   /** 途中から再開するときの指し手 */
@@ -81,15 +83,25 @@ export function initPlay(): void {
 }
 
 /** 相手のパネルに、顔の絵を出す（顔がない対局では隠す） */
-function showAvatar(face: PlayConfig['opponentFace']): void {
-  const el = byId('avatar-top');
-  el.replaceChildren();
-  el.hidden = !face;
-  if (!face) return;
-  el.dataset.tone = String(face.tone);
-  const svg = portraitSvg(face.art, '-chip');
-  svg.setAttribute('viewBox', '24 -6 112 138'); // 顔まわりだけを切り出す
-  el.append(svg);
+function showAvatar(opponent: PlayConfig['opponentFace'], player: PlayConfig['playerFace']): void {
+  const fill = (el: HTMLElement, face: PlayConfig['opponentFace'], suffix: string): void => {
+    el.dataset.tone = String(face!.tone);
+    const svg = portraitSvg(face!.art, suffix);
+    svg.setAttribute('viewBox', '24 -6 112 138'); // 顔まわりだけを切り出す
+    el.append(svg);
+  };
+  const top = byId('avatar-top');
+  top.replaceChildren();
+  top.hidden = !opponent;
+  // 自分のパネルにも同じ大きさの枠を置いて、2 つのパネルをそろえる
+  // （物語では、その編の主人公の顔。ほかの対局では、自分の側の玉）
+  const self = byId('avatar-bottom');
+  self.replaceChildren();
+  self.hidden = !opponent;
+  if (!opponent) return;
+  fill(top, opponent, '-chip');
+  if (player) fill(self, player, '-me');
+  else if (cfg.mode === 'cpu') self.append(pieceElement(KING, cfg.human, false));
 }
 
 /** CPU の思考や待ち時間を止める（画面を離れるとき） */
@@ -112,7 +124,7 @@ export function startPlay(config: PlayConfig): void {
   buildLabels();
   clearSpeech();
   byId('opp-speech').hidden = !config.talk;
-  showAvatar(config.opponentFace);
+  showAvatar(config.opponentFace, config.playerFace);
   refresh();
   // 新しい対局のはじめに、対戦相手がひとこと話す
   if (config.talk && game.moves.length === 0) {

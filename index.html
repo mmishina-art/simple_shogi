@@ -151,12 +151,16 @@
         </header>
 
         <div class="player" id="panel-top">
+          <p id="opp-speech" class="opp-speech idle" aria-live="polite" hidden></p>
           <div class="portrait avatar" id="avatar-top" data-tone="1" hidden aria-hidden="true"></div>
-          <p class="player-name"><span id="name-top"></span></p>
-          <div class="hand" id="hand-top" role="group" aria-label="上側の持ち駒"></div>
+          <div class="player-main">
+            <div class="player-head">
+              <p class="player-name"><span id="name-top"></span></p>
+              <p id="status" class="status" role="status" aria-live="polite"></p>
+            </div>
+            <div class="hand" id="hand-top" role="group" aria-label="上側の持ち駒"></div>
+          </div>
         </div>
-
-        <p id="opp-speech" class="opp-speech idle" aria-live="polite" hidden></p>
 
         <div class="board-wrap">
           <div class="file-labels" id="file-labels" aria-hidden="true"></div>
@@ -167,11 +171,15 @@
         </div>
 
         <div class="player" id="panel-bottom">
-          <p class="player-name"><span id="name-bottom"></span></p>
-          <div class="hand" id="hand-bottom" role="group" aria-label="下側の持ち駒"></div>
+          <div class="portrait avatar self" id="avatar-bottom" hidden aria-hidden="true"></div>
+          <div class="player-main">
+            <div class="player-head">
+              <p class="player-name"><span id="name-bottom"></span></p>
+            </div>
+            <div class="hand" id="hand-bottom" role="group" aria-label="下側の持ち駒"></div>
+          </div>
         </div>
 
-        <p id="status" class="status" role="status" aria-live="polite"></p>
         <div class="controls">
           <button id="btn-undo" type="button">待った</button>
           <button id="btn-kifu" type="button">棋譜</button>
